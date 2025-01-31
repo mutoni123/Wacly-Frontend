@@ -6,7 +6,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export function RadialChart() {
-  const [animationCompleted, setAnimationCompleted] = useState(false);
+  const [setAnimationCompleted] = useState(false);
 
   const data = {
     labels: ['Male', 'Female'],
