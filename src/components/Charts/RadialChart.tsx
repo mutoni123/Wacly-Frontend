@@ -1,13 +1,10 @@
-"use client"
-import {  useState } from 'react';
+"use client";
 import { Chart } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export function RadialChart() {
-  const [setAnimationCompleted] = useState(false);
-
   const data = {
     labels: ['Male', 'Female'],
     datasets: [
@@ -25,7 +22,6 @@ export function RadialChart() {
     animation: {
       animateRotate: true,
       animateScale: true,
-      onComplete: () => setAnimationCompleted(true),
     },
     plugins: {
       legend: {
