@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react';
+import {  useState } from 'react';
 import { Chart } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 

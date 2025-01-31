@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 
 export default function Profile() {
-  const [profileData, setProfileData] = useState({
+  const [profileData] = useState({
     name: 'John Doe',
     email: 'john.doe@example.com',
     position: 'Software Developer',
