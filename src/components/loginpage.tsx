@@ -43,7 +43,7 @@ export default function LoginPage() {
       }
 
       setIsLoading(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error', error);
       setIsLoading(false);
       // Handle login error (show error message to the user)
