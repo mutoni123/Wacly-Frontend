@@ -1,6 +1,6 @@
 'use client';
 
-import Sidebar from '@/components/sidebar';
+import Sidebar from '@/components/Employeesidebar';
 import Header from '@/components/Employeeheader';
 import TaskTable from '@/components/Tables/TaskTable';
 import TasksOverview from '@/components/TasksOverview';

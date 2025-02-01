@@ -1,6 +1,6 @@
 'use client';
 
-import Sidebar from '@/components/sidebar';
+import Sidebar from '@/components/Adminsidebar';
 import Header from '@/components/AdminHeader';
 import { RadialChart } from '@/components/Charts/RadialChart';
 import Calendar from '@/components/Calendar';
