@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import axios from 'axios'; // Import axios
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,10 +17,38 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Add your login logic here
-    setTimeout(() => {
+
+    try {
+      // Send login request to the backend
+      const response = await axios.post('http://localhost:5000/api/users/login', {
+        email: formData.email,
+        password: formData.password,
+      });
+
+      // Save JWT token to localStorage if login is successful
+      localStorage.setItem('token', response.data.token);
+
+      // Handle successful login and redirect based on role
+      const userRole = response.data.role;
+
+      // Redirect user based on their role
+      if (userRole === 'admin') {
+        window.location.href = '/admin';  // Redirect to admin dashboard
+      } else if (userRole === 'manager') {
+        window.location.href = '/manager';  // Redirect to manager dashboard
+      } else if (userRole === 'employee') {
+        window.location.href = '/employee';  // Redirect to employee dashboard
+      } else {
+        alert('Unknown role, please contact support.');
+      }
+
       setIsLoading(false);
-    }, 1500);
+    } catch (error: any) {
+      console.error('Login error', error);
+      setIsLoading(false);
+      // Handle login error (show error message to the user)
+      alert('Invalid login credentials');
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
