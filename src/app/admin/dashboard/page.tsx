@@ -1,6 +1,5 @@
 'use client';
 
-import Sidebar from '@/components/Adminsidebar';
 import Header from '@/components/AdminHeader';
 import { RadialChart } from '@/components/Charts/RadialChart';
 import Calendar from '@/components/Calendar';
@@ -10,7 +9,6 @@ import Timeline from '@/components/Timeline';
 export default function AdminDashboard() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar />
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0"> {/* min-w-0 prevents flex child from overflowing */}

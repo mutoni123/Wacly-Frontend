@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       // Redirect user based on their role
       if (userRole === 'admin') {
-        window.location.href = '/admin';  // Redirect to admin dashboard
+        window.location.href = '/admin/dashboard';  // Redirect to admin dashboard
       } else if (userRole === 'manager') {
         window.location.href = '/manager';  // Redirect to manager dashboard
       } else if (userRole === 'employee') {

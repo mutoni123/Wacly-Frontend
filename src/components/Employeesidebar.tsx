@@ -53,7 +53,7 @@ const EmployeeSidebar = () => {
   const navItems: NavItem[] = [
     {
       name: 'Dashboard',
-      href: '/employee/dashboard',
+      href: '/frontend/src/app/employee',
       icon: HomeIcon,
     },
     {

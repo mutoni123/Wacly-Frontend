@@ -54,35 +54,35 @@ export default function Sidebar() {
   const navItems: NavItem[] = [
     {
       name: 'Dashboard',
-      href: '/dashboard',
+      href: '/admin/dashboard',
       icon: HomeIcon,
     },
     {
       name: 'Employees',
-      href: '/employees',
+      href: '/admin/employees',
       icon: UsersIcon,
       subItems: [
-        { name: 'All Employees', href: '/employees/list', icon: UserGroupIcon },
-        { name: 'Departments', href: '/employees/departments', icon: BriefcaseIcon },
+        { name: 'All Employees', href: '/admin/employees/list', icon: UserGroupIcon },
+        { name: 'Departments', href: '/admin/employees/departments', icon: BriefcaseIcon },
       ],
     },
     {
       name: 'Leave Management',
-      href: '/leave',
+      href: '/admin/leave',
       icon: CalendarIcon,
       subItems: [
-        { name: 'Leave Requests', href: '/leave/requests', icon: ClipboardDocumentListIcon },
-        { name: 'Leave Types', href: '/leave/types', icon: ClipboardDocumentListIcon },
+        { name: 'Leave Requests', href: '/admin/leave/requests', icon: ClipboardDocumentListIcon },
+        { name: 'Leave Types', href: '/admin/leave/types', icon: ClipboardDocumentListIcon },
       ],
     },
     {
       name: 'Analytics',
-      href: '/analytics',
+      href: '/admin/analytics',
       icon: ChartBarIcon,
     },
     {
       name: 'Settings',
-      href: '/settings',
+      href: '/admin/settings',
       icon: CogIcon,
     },
   ];
@@ -117,7 +117,12 @@ export default function Sidebar() {
     <div className="p-4 border-b border-blue-700">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-white flex-shrink-0 overflow-hidden">
-          <Image src="/logo.png" alt="Company Logo" width={40} height={40} className="object-cover" />
+          <Image 
+          src="/logo.png" 
+          alt="Company Logo" 
+          width={40} 
+          height={40} 
+          className="object-cover" />
         </div>
         {(isOpen || isMobile) && (
           <motion.div
@@ -136,10 +141,11 @@ export default function Sidebar() {
   const NavItem: React.FC<NavItemProps> = ({ item, depth = 0 }) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isExpanded = expandedItems.includes(item.name);
-
+  
     return (
       <li>
-        <div
+        <Link
+          href={item.href}
           className={`
             flex items-center px-4 py-3 
             hover:bg-blue-700 transition-colors
@@ -166,7 +172,7 @@ export default function Sidebar() {
               )}
             </motion.div>
           )}
-        </div>
+        </Link>
         {hasSubItems && isExpanded && (isOpen || isMobile) && (
           <motion.ul
             initial={{ opacity: 0, height: 0 }}
@@ -174,7 +180,7 @@ export default function Sidebar() {
             exit={{ opacity: 0, height: 0 }}
             className="bg-blue-900"
           >
-            {item.subItems?.map(subItem => (
+            {item.subItems?.map((subItem) => (
               <NavItem key={subItem.href} item={subItem} depth={depth + 1} />
             ))}
           </motion.ul>
