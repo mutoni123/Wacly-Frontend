@@ -14,7 +14,6 @@ import {
   Bars3Icon,
   UserCircleIcon,
   ClipboardDocumentListIcon,
-  BellIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 
@@ -53,7 +52,7 @@ const EmployeeSidebar = () => {
   const navItems: NavItem[] = [
     {
       name: 'Dashboard',
-      href: '/frontend/src/app/employee',
+      href: '/employee/dashboard',
       icon: HomeIcon,
     },
     {
@@ -78,11 +77,6 @@ const EmployeeSidebar = () => {
       name: 'Documents',
       href: '/employee/documents',
       icon: DocumentDuplicateIcon,
-    },
-    {
-      name: 'Notifications',
-      href: '/employee/notifications',
-      icon: BellIcon,
     },
   ];
 

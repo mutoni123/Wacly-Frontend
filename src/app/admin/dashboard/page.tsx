@@ -8,10 +8,10 @@ import Timeline from '@/components/Timeline';
 
 export default function AdminDashboard() {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0"> {/* min-w-0 prevents flex child from overflowing */}
+      <div className=" flex flex-col min-w-0"> {/* min-w-0 prevents flex child from overflowing */}
         <Header />
         
         {/* Scrollable Content Area */}

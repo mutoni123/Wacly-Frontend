@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       // Send login request to the backend
-      const response = await axios.post('http://localhost:5000/api/users/login', {
+      const response = await axios.post('http://localhost:5000/api/auth/login', {
         email: formData.email,
         password: formData.password,
       });
@@ -35,9 +35,9 @@ export default function LoginPage() {
       if (userRole === 'admin') {
         window.location.href = '/admin/dashboard';  // Redirect to admin dashboard
       } else if (userRole === 'manager') {
-        window.location.href = '/manager';  // Redirect to manager dashboard
+        window.location.href = '/manager/dashboard';  // Redirect to manager dashboard
       } else if (userRole === 'employee') {
-        window.location.href = '/employee';  // Redirect to employee dashboard
+        window.location.href = '/employee/dashboard';  // Redirect to employee dashboard
       } else {
         alert('Unknown role, please contact support.');
       }

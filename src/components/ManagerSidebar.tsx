@@ -70,12 +70,12 @@ const ManagerSidebar = () => {
     },
     {
       name: 'Attendance',
-      href: '/manager/attendance',
+      href: '/manager/Attendance',
       icon: CalendarIcon,
       subItems: [
-        { name: 'Team Attendance', href: '/manager/attendance/team', icon: UsersIcon },
-        { name: 'Time Sheets', href: '/manager/attendance/timesheets', icon: DocumentTextIcon },
-        { name: 'Schedule Planning', href: '/manager/attendance/schedule', icon: CalendarIcon },
+        { name: 'Team Attendance', href: '/manager/Attendance/team', icon: UsersIcon },
+        { name: 'Time Sheets', href: '/manager/Attendance/timesheets', icon: DocumentTextIcon },
+        { name: 'Schedule Planning', href: '/manager/Attendance/schedule', icon: CalendarIcon },
       ],
     },
     {

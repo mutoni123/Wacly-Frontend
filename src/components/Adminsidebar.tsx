@@ -59,7 +59,7 @@ export default function Sidebar() {
     },
     {
       name: 'Employees',
-      href: '/admin/employees',
+      href: '/admin/employees/list',
       icon: UsersIcon,
       subItems: [
         { name: 'All Employees', href: '/admin/employees/list', icon: UserGroupIcon },
