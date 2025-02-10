@@ -27,8 +27,17 @@ export default function LeaveTypesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<Partial<LeaveType>>({});
+  const [formData, setFormData] = useState<Partial<LeaveType>>({
+    name: '',
+    daysAllowed: 0,
+    carryForward: false,
+    description: '',
+    requiresApproval: false,
+    status: 'Active',
+  });
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null); // For delete confirmation
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -37,66 +46,110 @@ export default function LeaveTypesPage() {
 
   const fetchLeaveTypes = async () => {
     try {
-      const response = await fetch('/api/leave-types');
+      const response = await fetch("http://localhost:5000/api/leave-types");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
       const data = await response.json();
       setLeaveTypes(data);
     } catch (error) {
-      console.error('Error fetching leave types:', error);
+      console.error("Fetch error:", (error as Error).message);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: name === 'carryForward' || name === 'requiresApproval' ? value === 'true' : value,
     });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/leave-types', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+      const method = formData.id ? 'PUT' : 'POST';
+      const url = formData.id
+          ? `http://localhost:5000/api/leave-types/${formData.id}`
+          : `http://localhost:5000/api/leave-types/add`;
+
+      // Convert string values to proper types
+      const payload = {
+        ...formData,
+        daysAllowed: Number(formData.daysAllowed),
+        carryForward: formData.carryForward === 'true',
+        requiresApproval: formData.requiresApproval === 'true'
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      if (response.ok) {
-        setShowForm(false);
-        setShowSuccessModal(true);
-        fetchLeaveTypes();
-      } else {
-        console.error('Failed to submit leave type');
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      setShowForm(false);
+      setShowSuccessModal(true);
+      fetchLeaveTypes();
+      // Reset form data
+      setFormData({
+        name: '',
+        daysAllowed: 0,
+        carryForward: false,
+        description: '',
+        requiresApproval: false,
+        status: 'Active'
+      });
     } catch (error) {
       console.error('Error submitting leave type:', error);
+      alert(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEdit = (type: LeaveType) => {
-    setFormData(type);
+    setFormData({
+      ...type,
+      carryForward: type.carryForward ? 'true' : 'false', // Convert boolean to string
+      requiresApproval: type.requiresApproval ? 'true' : 'false' // Convert boolean to string
+    });
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id); // Show confirmation modal
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setIsLoading(true);
     try {
-      const response = await fetch(`/api/leave-types/${id}`, {
-        method: 'DELETE'
+      const response = await fetch(`http://localhost:5000/api/leave-types/${deleteConfirmId}`, {
+        method: 'DELETE',
       });
-      if (response.ok) {
-        fetchLeaveTypes();
-      } else {
-        console.error('Failed to delete leave type');
+      if (!response.ok) {
+        throw new Error('Failed to delete leave type');
       }
+      fetchLeaveTypes();
     } catch (error) {
-      console.error('Error deleting leave type:', error);
+      console.error('Error deleting leave type:', (error as Error).message);
+    } finally {
+      setIsLoading(false);
+      setDeleteConfirmId(null); // Close confirmation modal
     }
   };
 
-  const filteredTypes = leaveTypes.filter(type =>
-      type.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      type.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTypes = leaveTypes.filter(
+      (type) =>
+          type.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          type.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredTypes.length / itemsPerPage);
@@ -107,14 +160,16 @@ export default function LeaveTypesPage() {
     const headers = ['Name', 'Days Allowed', 'Carry Forward', 'Description', 'Requires Approval', 'Status'];
     const csvContent = [
       headers.join(','),
-      ...leaveTypes.map(type => [
-        type.name,
-        type.daysAllowed,
-        type.carryForward,
-        type.description,
-        type.requiresApproval,
-        type.status
-      ].join(','))
+      ...leaveTypes.map((type) =>
+          [
+            type.name,
+            type.daysAllowed,
+            type.carryForward ? 'Yes' : 'No',
+            type.description,
+            type.requiresApproval ? 'Yes' : 'No',
+            type.status,
+          ].join(',')
+      ),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -130,11 +185,7 @@ export default function LeaveTypesPage() {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight">Leave Types</h1>
           <div className="flex gap-2">
-            <Button
-                variant="outline"
-                className="flex items-center gap-2"
-                onClick={exportToCSV}
-            >
+            <Button variant="outline" className="flex items-center gap-2" onClick={exportToCSV}>
               <Download className="h-4 w-4" />
               Export
             </Button>
@@ -147,7 +198,7 @@ export default function LeaveTypesPage() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>New Leave Type</DialogTitle>
+                  <DialogTitle>{formData.id ? 'Edit Leave Type' : 'New Leave Type'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -231,7 +282,22 @@ export default function LeaveTypesPage() {
                         required
                     />
                   </div>
-
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                        id="status"
+                        name="status"
+                        value={formData.status || 'Active'}
+                        onChange={handleChange}
+                        className="w-full"
+                        required
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
                   <div className="flex justify-end gap-4">
                     <Button
                         type="button"
@@ -241,8 +307,8 @@ export default function LeaveTypesPage() {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-                      Submit
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isLoading}>
+                      {isLoading ? 'Submitting...' : 'Submit'}
                     </Button>
                   </div>
                 </form>
@@ -282,19 +348,17 @@ export default function LeaveTypesPage() {
                   <tr key={type.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">{type.name}</td>
                     <td className="px-4 py-3">{type.daysAllowed}</td>
-                    <td className="px-4 py-3">
-                      {type.carryForward ? 'Yes' : 'No'}
-                    </td>
+                    <td className="px-4 py-3">{type.carryForward ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3">{type.description}</td>
+                    <td className="px-4 py-3">{type.requiresApproval ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3">
-                      {type.requiresApproval ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                        type.status === 'Active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                            type.status === 'Active'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                        }`}
+                    >
                       {type.status}
                     </span>
                     </td>
@@ -322,13 +386,14 @@ export default function LeaveTypesPage() {
 
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredTypes.length)} of {filteredTypes.length} results
+            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredTypes.length)} of{' '}
+            {filteredTypes.length} results
           </div>
           <div className="flex gap-2">
             <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
             >
               Previous
@@ -336,7 +401,7 @@ export default function LeaveTypesPage() {
             <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
             >
               Next
@@ -344,6 +409,7 @@ export default function LeaveTypesPage() {
           </div>
         </div>
 
+        {/* Success Modal */}
         <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
           <DialogContent>
             <DialogHeader>
@@ -354,6 +420,33 @@ export default function LeaveTypesPage() {
               <Button onClick={() => setShowSuccessModal(false)} className="mt-4">
                 Close
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Delete</DialogTitle>
+            </DialogHeader>
+            <div className="p-4 space-y-4">
+              <p>Are you sure you want to delete this leave type?</p>
+              <div className="flex justify-end gap-4">
+                <Button
+                    variant="outline"
+                    onClick={() => setDeleteConfirmId(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                    variant="destructive"
+                    onClick={confirmDelete}
+                    disabled={isLoading}
+                >
+                  {isLoading ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
