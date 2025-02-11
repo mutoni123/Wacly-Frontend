@@ -3,113 +3,438 @@
 import Header from '@/components/AdminHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import { Label } from '@/components/ui/label';
+import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow 
+  TableRow
 } from '@/components/ui/table';
-import { Search, Plus, MoreVertical } from 'lucide-react';
+import { Search, Plus, MoreVertical, Edit, Trash } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { toast } from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import Papa from 'papaparse';
+
+interface Employee {
+  emp_id: string;
+  name: string;
+  email: string;
+  phone_number: string;
+  role: 'admin' | 'manager' | 'employee';
+}
 
 const EmployeeListPage = () => {
-  // Sample data - replace with actual data fetching
-  const employees = [
-    { id: 1, name: "John Doe", email: "john@example.com", department: "Engineering", role: "Senior Developer", status: "Active" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", department: "HR", role: "HR Manager", status: "Active" },
-    { id: 3, name: "Mike Johnson", email: "mike@example.com", department: "Marketing", role: "Marketing Lead", status: "On Leave" },
-  ];
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0
+  });
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone_number: '',
+    role: 'employee' as 'admin' | 'manager' | 'employee',
+    password: ''
+  });
+
+  const fetchEmployees = async (page = 1, role = 'all') => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+        role: role === 'all' ? '' : role,
+        search: searchQuery
+      });
+
+      const response = await fetch(`http://localhost:5000/api/employees?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch employees');
+
+      const data = await response.json();
+      setEmployees(data.employees);
+      setPagination(prev => ({
+        ...prev,
+        total: data.total,
+        page
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch employees');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingEmployee
+          ? `http://localhost:5000/api/employees/update/${editingEmployee.emp_id}`
+          : 'http://localhost:5000/api/employees';
+
+      const method = editingEmployee ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error(`Failed to ${editingEmployee ? 'update' : 'create'} employee`);
+
+      toast.success(`Employee ${editingEmployee ? 'updated' : 'created'} successfully`);
+      setIsModalOpen(false);
+      fetchEmployees(pagination.page, selectedRole);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleDelete = async (empId: string) => {
+    if (!confirm('Are you sure you want to delete this employee?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/employees/delete/${empId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete employee');
+
+      toast.success('Employee deleted successfully');
+      fetchEmployees(pagination.page, selectedRole);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+  const exportToPDF = async () => {
+    const doc = new jsPDF();
+    const input = document.getElementById('employee-table');
+    const canvas = await html2canvas(input);
+    const imgData = canvas.toDataURL('image/png');
+    const date = new Date().toLocaleString();
+    const generatedBy = 'John Doe'; // Replace with actual user name
+
+    doc.addImage(imgData, 'PNG', 10, 10, 190, 0);
+    doc.text('Company Name', 10, 10);
+    doc.text(`Generated by: ${generatedBy}`, 10, 20);
+    doc.text(`Date: ${date}`, 10, 30);
+    doc.save('employees.pdf');
+  };
+
+  const exportToCSV = () => {
+    const csvData = employees.map(employee => ({
+      'Employee ID': employee.emp_id,
+      'Name': employee.name,
+      'Email': employee.email,
+      'Phone': employee.phone_number,
+      'Role': employee.role
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'employees.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
+  useEffect(() => {
+    fetchEmployees(pagination.page, selectedRole);
+  }, [selectedRole, searchQuery]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const PaginationControls = () => (
+      <div className="flex justify-between items-center mt-4">
+        <Button
+            variant="outline"
+            disabled={pagination.page === 1}
+            onClick={() => fetchEmployees(pagination.page - 1, selectedRole)}
+        >
+          Previous
+        </Button>
+        <span className="text-sm text-gray-600">
+        Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit)}
+      </span>
+        <Button
+            variant="outline"
+            disabled={pagination.page * pagination.limit >= pagination.total}
+            onClick={() => fetchEmployees(pagination.page + 1, selectedRole)}
+        >
+          Next
+        </Button>
+      </div>
+  );
 
   return (
-    <div className=" overflow-hidden">
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Employees</h1>
-              <p className="text-gray-500 mt-1">Manage your organizations employees</p>
-            </div>
-            <Button className="mt-4 sm:mt-0">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Employee
-            </Button>
-          </div>
+      <div className="overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header />
 
-          {/* Search and Filter Bar */}
-          <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search employees..."
-                  className="pl-10"
-                />
+          <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Employees</h1>
+                <p className="text-gray-500 mt-1">Manage your organizations employees</p>
               </div>
               <div className="flex gap-4">
-                <select className="px-4 py-2 border rounded-md bg-white">
-                  <option>All Departments</option>
-                  <option>Engineering</option>
-                  <option>HR</option>
-                  <option>Marketing</option>
-                </select>
-                <select className="px-4 py-2 border rounded-md bg-white">
-                  <option>All Status</option>
-                  <option>Active</option>
-                  <option>On Leave</option>
-                  <option>Inactive</option>
-                </select>
+                <Button onClick={exportToPDF}>Export to PDF</Button>
+                <Button onClick={exportToCSV}>Export to CSV</Button>
+                <Button
+                    className="mt-4 sm:mt-0"
+                    onClick={() => {
+                      setEditingEmployee(null);
+                      setFormData({
+                        name: '',
+                        email: '',
+                        phone_number: '',
+                        role: 'employee',
+                        password: ''
+                      });
+                      setIsModalOpen(true);
+                    }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Employee
+                </Button>
               </div>
             </div>
-          </div>
 
-          {/* Employee Table */}
-          <div className="bg-white rounded-lg shadow-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employees.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell className="font-medium">{employee.name}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell>{employee.department}</TableCell>
-                    <TableCell>{employee.role}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        employee.status === 'Active' ? 'bg-green-100 text-green-800' :
-                        employee.status === 'On Leave' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {employee.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            {/* Search and Filter Bar */}
+            <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                      placeholder="Search employees..."
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={handleSearch}
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <select
+                      className="px-4 py-2 border rounded-md bg-white"
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                  >
+                    <option value="all">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="employee">Employee</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Employee Table */}
+            <div className="bg-white rounded-lg shadow-md" id="employee-table">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </main>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          Loading employees...
+                        </TableCell>
+                      </TableRow>
+                  ) : error ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-red-500 py-8">
+                          {error}
+                        </TableCell>
+                      </TableRow>
+                  ) : employees.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          No employees found
+                        </TableCell>
+                      </TableRow>
+                  ) : (
+                      employees.map((employee) => (
+                          <TableRow key={employee.emp_id}>
+                            <TableCell className="font-medium">{employee.emp_id}</TableCell>
+                            <TableCell>{employee.name}</TableCell>
+                            <TableCell>{employee.email}</TableCell>
+                            <TableCell>{employee.phone_number}</TableCell>
+                            <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            employee.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                employee.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-gray-100 text-gray-800'
+                        }`}>
+                          {employee.role}
+                        </span>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem
+                                      onClick={() => {
+                                        setEditingEmployee(employee);
+                                        setFormData({
+                                          name: employee.name,
+                                          email: employee.email,
+                                          phone_number: employee.phone_number,
+                                          role: employee.role,
+                                          password: ''
+                                        });
+                                        setIsModalOpen(true);
+                                      }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() => handleDelete(employee.emp_id)}
+                                  >
+                                    <Trash className="w-4 h-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+              <PaginationControls />
+            </div>
+          </main>
+
+          {/* Add/Edit Employee Modal */}
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Full Name
+                    </Label>
+                    <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="col-span-3"
+                        required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="email" className="text-right">
+                      Email
+                    </Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="col-span-3"
+                        required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phone" className="text-right">
+                      Phone Number
+                    </Label>
+                    <Input
+                        id="phone"
+                        value={formData.phone_number}
+                        onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                        className="col-span-3"
+                        required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="role" className="text-right">
+                      Role
+                    </Label>
+                    <select
+                        id="role"
+                        className="col-span-3 px-4 py-2 border rounded-md"
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  {!editingEmployee && (
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="password" className="text-right">
+                          Password
+                        </Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className="col-span-3"
+                            required
+                        />
+                      </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button type="submit">
+                    {editingEmployee ? 'Update Employee' : 'Create Employee'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
-    </div>
   );
 };
-
 export default EmployeeListPage;

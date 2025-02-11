@@ -104,15 +104,26 @@ export default function Sidebar() {
     // Fetch user data from the backend
     const fetchUserData = async () => {
       try {
-        const response = await fetch('/api/auth/profile', {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch('http://localhost:5000/api/auth/profile', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`, // Ensure the token is included
+            'Authorization': `Bearer ${token}`,
           },
         });
 
+        if (response.status === 401) {
+          // Handle expired/invalid token
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
+        }
+
         if (!response.ok) {
-          console.error(`Error: ${response.status} ${response.statusText}`);
-          throw new Error('Network response was not ok');
+          throw new Error(`Error: ${response.status}`);
         }
 
         const data = await response.json();
@@ -123,6 +134,10 @@ export default function Sidebar() {
         });
       } catch (error) {
         console.error('Error fetching user data:', error);
+        // Redirect to login if unauthorized
+        if (error.message.includes('401')) {
+          window.location.href = '/login';
+        }
       }
     };
 
