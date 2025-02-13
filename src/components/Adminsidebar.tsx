@@ -9,7 +9,6 @@ import {
   HomeIcon,
   UsersIcon,
   CalendarIcon,
-  ChartBarIcon,
   CogIcon,
   UserCircleIcon,
   ChevronDownIcon,
@@ -69,11 +68,6 @@ export default function Sidebar() {
         { name: 'Leave Requests', href: '/admin/leave/requests', icon: ClipboardDocumentListIcon },
         { name: 'Leave Types', href: '/admin/leave/types', icon: ClipboardDocumentListIcon },
       ],
-    },
-    {
-      name: 'Analytics',
-      href: '/admin/analytics',
-      icon: ChartBarIcon,
     },
     {
       name: 'Settings',
