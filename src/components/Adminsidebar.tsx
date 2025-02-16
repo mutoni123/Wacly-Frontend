@@ -17,6 +17,10 @@ import {
   UserGroupIcon,
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
+import { UserProfile } from '@/components/UserProfile';
+import { useAuth } from '@/contexts/AuthContext';
+
+
 
 // Types
 interface NavItem {
@@ -224,64 +228,68 @@ export default function Sidebar() {
       </nav>
   );
 
-  const UserProfile = () => (
+  const UserProfile = () => {
+    const { logout } = useAuth();
+    return (
       <div className="relative mt-auto border-t border-blue-700" id="user-menu">
         <button
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
-            aria-expanded={isUserMenuOpen}
-            aria-controls="user-menu-dropdown"
+          onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+          className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
+          aria-expanded={isUserMenuOpen}
+          aria-controls="user-menu-dropdown"
         >
           <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0">
             {user.avatar ? (
-                <Image src={user.avatar} alt={user.name} width={32} height={32} className="rounded-full" />
+              <Image src={user.avatar} alt={user.name} width={32} height={32} className="rounded-full" />
             ) : (
-                <UserCircleIcon className="w-8 h-8 text-white" aria-hidden="true" />
+              <UserCircleIcon className="w-8 h-8 text-white" aria-hidden="true" />
             )}
           </div>
           {(isOpen || isMobile) && (
-              <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-1 items-center justify-between"
-              >
-                <div className="flex flex-col text-left">
-                  <span className="font-medium text-sm">{user.name}</span>
-                  <span className="text-xs text-blue-200">{user.role}</span>
-                </div>
-                <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
-              </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-1 items-center justify-between"
+            >
+              <div className="flex flex-col text-left">
+                <span className="font-medium text-sm">{user.name}</span>
+                <span className="text-xs text-blue-200">{user.role}</span>
+              </div>
+              <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
+            </motion.div>
           )}
         </button>
         <AnimatePresence>
           {isUserMenuOpen && (
-              <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
-                  id="user-menu-dropdown"
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
+              id="user-menu-dropdown"
+            >
+              <Link
+                href="/profile"
+                className="block px-4 py-2 hover:bg-blue-600 transition-colors"
+                onClick={() => setIsUserMenuOpen(false)}
               >
-                <Link
-                    href="/profile"
-                    className="block px-4 py-2 hover:bg-blue-600 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                >
-                  Account Settings
-                </Link>
-                <button
-                    onClick={() => {
-                      console.log('Logout clicked');
-                    }}
-                    className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
-                >
-                  Logout
-                </button>
-              </motion.div>
+                Account Settings
+              </Link>
+              <button
+                onClick={async () => {
+                  setIsUserMenuOpen(false);
+                  await logout();
+                }}
+                className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
+              >
+                Logout
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
-  );
+    );
+  };
 
   return (
       <>

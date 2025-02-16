@@ -1,9 +1,19 @@
-// components/Header.js
 "use client"
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function Header() {
     const [isOpen, setIsOpen] = useState(false);
+    const { user, logout } = useAuth();
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
 
     return (
         <header className="bg-white shadow">
@@ -16,7 +26,7 @@ export default function Header() {
                                 onClick={() => setIsOpen(!isOpen)}
                                 className="flex items-center focus:outline-none"
                             >
-                                <span className="text-gray-700">Admin</span>
+                                <span className="text-gray-700">{user?.name || 'Admin'}</span>
                                 <svg
                                     className="w-4 h-4 ml-2"
                                     fill="none"
@@ -33,25 +43,30 @@ export default function Header() {
                                 </svg>
                             </button>
                             {isOpen && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1">
-                                    <a
-                                        href="#"
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                    <Link
+                                        href="/admin/profile"
                                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        onClick={() => setIsOpen(false)}
                                     >
                                         Profile
-                                    </a>
-                                    <a
-                                        href="#"
+                                    </Link>
+                                    <Link
+                                        href="/admin/settings"
                                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        onClick={() => setIsOpen(false)}
                                     >
                                         Settings
-                                    </a>
-                                    <a
-                                        href="#"
-                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                    </Link>
+                                    <button
+                                        onClick={() => {
+                                            setIsOpen(false);
+                                            handleLogout();
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                                     >
                                         Logout
-                                    </a>
+                                    </button>
                                 </div>
                             )}
                         </div>

@@ -1,8 +1,19 @@
 "use client"
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function EmployeeHeader() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <header className="bg-white shadow">
@@ -15,19 +26,61 @@ export default function EmployeeHeader() {
                 onClick={() => setIsOpen(!isOpen)} 
                 className="flex items-center focus:outline-none"
               >
-                <span className="text-gray-700">Employee</span>
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="text-gray-700">{user?.name || 'Employee'}</span>
+                <svg 
+                  className={`w-4 h-4 ml-2 transform transition-transform duration-200 ${
+                    isOpen ? 'rotate-180' : ''
+                  }`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
               </button>
               
               {isOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-                  <a href="/attendance" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Attendance</a>
-                  <a href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
-                  <a href="/logout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
-                </div>
+                <>
+                  {/* Overlay to capture clicks outside dropdown */}
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsOpen(false)}
+                  />
+                  
+                  {/* Dropdown menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                    <Link
+                      href="/employee/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href="/employee/attendance"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Attendance
+                    </Link>
+                    <Link
+                      href="/employee/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>

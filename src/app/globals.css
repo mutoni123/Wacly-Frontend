@@ -81,3 +81,13 @@ body {
     @apply bg-background text-foreground;
   }
 }
+/* Add to your global CSS */
+[data-state="active"] .tab-indicator {
+  background: #3b82f6;
+  height: 3px;
+  margin-top: 2px;
+}
+
+.tab-content {
+  @apply transition-all duration-300 ease-in-out;
+}

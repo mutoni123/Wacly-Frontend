@@ -1,27 +1,25 @@
-"use client"
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Users, Edit, Trash, Mail, ArrowRightLeft } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { PlusCircle, Edit, Trash, ArrowRightLeft } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'react-hot-toast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from '@/components/ui/skeleton';
+
+
+interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  departmentId: string;
+}
 
 interface Department {
   id: string;
@@ -32,34 +30,21 @@ interface Department {
   managerName: string;
   budget: number;
   activeProjects: number;
-  averagePerformance: number;
 }
 
-interface Employee {
-  id: string;
-  name: string;
-  role: string;
-  email: string;
-  departmentId: string;
-}
-
-interface DepartmentAnalytics {
-  totalEmployees: number;
-  averagePerformance: number;
-  totalBudget: number;
-  activeProjects: number;
-}
-
-export default function DepartmentsPage() {
+export default function DepartmentPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [managers, setManagers] = useState<Employee[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'edit' | 'view' | null>(null);
-  const [analytics, setAnalytics] = useState<DepartmentAnalytics | null>(null);
-  
+
+  // Form states
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -75,357 +60,358 @@ export default function DepartmentsPage() {
     reason: ''
   });
 
-  const [announcementData, setAnnouncementData] = useState({
-    departmentId: '',
-    title: '',
-    message: ''
-  });
-
-  useEffect(() => {
-    fetchDepartments();
-    fetchManagers();
-    fetchEmployees();
-    fetchDepartmentAnalytics(); // Now works without argument
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/departments`);
+      if (!response.ok) throw new Error('Failed to fetch departments');
+      setDepartments(await response.json());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch departments');
+    }
   }, []);
 
-  const fetchDepartments = async () => {
+  const fetchManagers = useCallback(async () => {
     try {
-      const response = await fetch('/api/departments');
-      const data = await response.json();
-      setDepartments(data);
-    } catch {
-      toast.error('Failed to fetch departments');
-    }
-  };
-  
-
-  const fetchManagers = async () => {
-    try {
-      const response = await fetch('/api/employees?role=manager');
+      const response = await fetch(`http://localhost:5000/api/employees?role=manager`);
+      if (!response.ok) throw new Error('Failed to fetch managers');
       const data = await response.json();
       setManagers(data.employees);
-    } catch {
-      toast.error('Failed to fetch managers');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch managers');
     }
-  };
-  const fetchEmployees = async () => {
+  }, []);
+
+  const fetchEmployees = useCallback(async () => {
     try {
-      const response = await fetch('/api/employees');
+      const response = await fetch(`http://localhost:5000/api/employees`);
+      if (!response.ok) throw new Error('Failed to fetch employees');
       const data = await response.json();
       setEmployees(data.employees);
-    } catch {
-      toast.error('Failed to fetch employees');
-    }
-  };
-  
-  const handleDelete = async (departmentId: string) => {
-    try {
-      const response = await fetch(`/api/departments/${departmentId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message);
-      }
-      
-      toast.success('Department deleted successfully');
-      fetchDepartments();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete department');
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch employees');
+    }
+  }, []);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([fetchDepartments(), fetchManagers(), fetchEmployees()]);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Failed to initialize data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    initializeData();
+  }, [fetchDepartments, fetchManagers, fetchEmployees]);
+
+  const handleDepartmentAction = async (
+    action: 'create' | 'update' | 'delete',
+    data: Partial<Department> & { id?: string }
+  ) => {
+    try {
+      const method = action === 'delete' ? 'DELETE' : action === 'update' ? 'PUT' : 'POST';
+      const url = action === 'delete' ? `$http://localhost:5000/api/departments/${data.id}` :
+        action === 'update' ? `$http://localhost:5000/api/departments/${data.id}` : `http://localhost:5000/api/departments`;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: method !== 'DELETE' ? JSON.stringify(data) : null
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Operation failed');
+      }
+
+      toast.success(`Department ${action}d successfully`);
+      await Promise.all([fetchDepartments(), fetchManagers()]);
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Operation failed');
+      return false;
     }
   };
-  
-  // Update the fetchDepartmentAnalytics function
-  const fetchDepartmentAnalytics = async (departmentId?: string) => {
+
+  const handleManagerUpdate = async (departmentId: string, managerId: string) => {
     try {
-      const url = departmentId 
-        ? `/api/departments/${departmentId}/analytics`
-        : '/api/departments/analytics';
+      const response = await fetch(`http://localhost:5000/api/departments/${departmentId}/manager`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerId })
+      });
+
+      if (!response.ok) throw new Error('Failed to update manager');
       
-      const response = await fetch(url);
-      const data = await response.json();
-      setAnalytics(data);
-    } catch {
-      toast.error('Failed to fetch department analytics');
+      toast.success('Manager updated successfully');
+      await Promise.all([fetchDepartments(), fetchManagers()]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update manager');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const url = modalType === 'edit' ? `/api/departments/${formData.id}` : '/api/departments';
-    const method = modalType === 'edit' ? 'PUT' : 'POST';
+    const { id, ...submitData } = formData;
+    const success = await handleDepartmentAction(
+      modalType === 'edit' ? 'update' : 'create',
+      { id, ...submitData }
+    );
     
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (!response.ok) throw new Error();
-      toast.success(`Department ${modalType === 'edit' ? 'updated' : 'created'}`);
+    if (success) {
       setIsModalOpen(false);
-      fetchDepartments();
-    } catch {
-      toast.error('Failed to process department');
+      setFormData({ id: '', name: '', description: '', managerId: '', budget: 0 });
     }
   };
 
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/departments/transfer', {
+      const response = await fetch(`http://localhost:5000/api/departments/transfer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transferData)
+        body: JSON.stringify({
+          employeeId: transferData.employeeId,
+          toDepartmentId: transferData.toDepartmentId,
+          reason: transferData.reason
+        })
       });
-      
-      if (!response.ok) throw new Error();
-      toast.success('Employee transfer request submitted');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to submit transfer request');
+      }
+
+      toast.success('Employee transfer request submitted successfully');
       setIsTransferModalOpen(false);
-    } catch {
-      toast.error('Failed to submit transfer request');
+      setTransferData({ employeeId: '', fromDepartmentId: '', toDepartmentId: '', reason: '' });
+      await Promise.all([fetchDepartments(), fetchEmployees()]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit transfer request');
     }
   };
 
-  const handleAnnouncementSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/departments/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(announcementData)
-      });
-      
-      if (!response.ok) throw new Error();
-      toast.success('Announcement sent');
-      setIsAnnouncementModalOpen(false);
-    } catch {
-      toast.error('Failed to send announcement');
-    }
-  };
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-[200px] w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  // Add click handler for department-specific analytics
-  const handleDepartmentClick = (dept: Department) => {
-    fetchDepartmentAnalytics(dept.id);
-  };
+  if (error) {
+    return (
+      <div className="p-4 md:p-6 text-center text-red-500">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <h1 className="text-2xl font-bold">Departments</h1>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button 
-            className="w-full sm:w-auto justify-center"
-            onClick={() => { setModalType('add'); setIsModalOpen(true); }}
-          >
+      {/* Header and Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Department Management</h1>
+          <p className="text-gray-500 mt-1">Manage organizational departments</p>
+        </div>
+        <div className="flex gap-4">
+          <Button onClick={() => { setModalType('add'); setIsModalOpen(true); }}>
             <PlusCircle className="h-4 w-4 mr-2" /> Add Department
           </Button>
-          <Button 
-            variant="outline" 
-            className="w-full sm:w-auto justify-center"
-            onClick={() => setIsTransferModalOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setIsTransferModalOpen(true)}>
             <ArrowRightLeft className="h-4 w-4 mr-2" /> Transfer
-          </Button>
-          <Button 
-            variant="outline" 
-            className="w-full sm:w-auto justify-center"
-            onClick={() => setIsAnnouncementModalOpen(true)}
-          >
-            <Mail className="h-4 w-4 mr-2" /> Announce
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="overview" className="flex-1 sm:flex-none">Overview</TabsTrigger>
-          <TabsTrigger value="analytics" className="flex-1 sm:flex-none">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {departments.map((dept) => (
-              <Card 
-                key={dept.id} 
-                className="cursor-pointer transition-all hover:shadow-md"
-                onClick={() => handleDepartmentClick(dept)}
-              >
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    <span>{dept.name}</span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" 
-                        onClick={() => { setFormData(dept); setModalType('view'); setIsModalOpen(true); }}>
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" 
-                        onClick={() => { setFormData(dept); setModalType('edit'); setIsModalOpen(true); }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(dept.id)}>
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Employees:</span>
-                      <span>{dept.employeeCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Manager:</span>
-                      <span>{dept.managerName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Active Projects:</span>
-                      <span>{dept.activeProjects}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Employees</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics?.totalEmployees || 0}
+      {/* Departments Table */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Department Name</TableHead>
+            <TableHead>Manager</TableHead>
+            <TableHead>Budget</TableHead>
+            <TableHead>Employees</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {departments.map((department) => (
+            <TableRow key={department.id}>
+              <TableCell className="font-medium">{department.name}</TableCell>
+              <TableCell>
+                <Select
+                  value={department.managerId}
+                  onValueChange={(value) => handleManagerUpdate(department.id, value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{manager.name}</span>
+                          <span className="text-muted-foreground text-sm">
+                            ({manager.email})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>Ksh {department.budget.toLocaleString()}</TableCell>
+              <TableCell>{department.employeeCount}</TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setFormData(department); setModalType('edit'); setIsModalOpen(true); }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDepartmentAction('delete', { id: department.id })}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics?.averagePerformance || 0}%
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Budget</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  Ksh {analytics?.totalBudget?.toLocaleString() || 0}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Projects</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics?.activeProjects || 0}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       {/* Department Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={() => setIsModalOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{modalType === 'edit' ? 'Edit' : modalType === 'view' ? 'View' : 'Add'} Department</DialogTitle>
+            <DialogTitle>
+              {modalType === 'edit' ? 'Edit Department' : 'New Department'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <Label>Department Name</Label>
-                <Input 
-                  value={formData.name} 
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                  required 
-                  disabled={modalType === 'view'}
-                />
-              </div>
-              
-              <div>
-                <Label>Description</Label>
-                <Textarea 
-                  value={formData.description} 
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  disabled={modalType === 'view'}
+                <Label>Department Name *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  required
                 />
               </div>
 
               <div>
-                <Label>Manager</Label>
-                <Select 
-                  value={formData.managerId} 
-                  onValueChange={(value) => setFormData({ ...formData, managerId: value })}
-                  disabled={modalType === 'view'}
+                <Label>Description</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <Label>Manager *</Label>
+                <Select
+                  value={formData.managerId}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, managerId: value }))}
+                  required
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a manager" />
+                    <SelectValue placeholder="Select manager" />
                   </SelectTrigger>
                   <SelectContent>
                     {managers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                      <SelectItem key={manager.id} value={manager.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{manager.name}</span>
+                          <span className="text-muted-foreground text-sm">
+                            ({manager.email})
+                          </span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label>Budget</Label>
-                <Input 
+                <Label>Budget (Ksh)</Label>
+                <Input
                   type="number"
-                  value={formData.budget} 
-                  onChange={(e) => setFormData({ ...formData, budget: Number(e.target.value) })}
-                  disabled={modalType === 'view'}
+                  value={formData.budget}
+                  onChange={(e) => setFormData(prev => ({ ...prev, budget: Number(e.target.value) }))}
                 />
               </div>
             </div>
-            
-            {modalType !== 'view' && (
-              <DialogFooter className="mt-4">
-                <Button type="submit">{modalType === 'edit' ? 'Update' : 'Create'} Department</Button>
-              </DialogFooter>
-            )}
+
+            <DialogFooter className="mt-4">
+              <Button type="submit">
+                {modalType === 'edit' ? 'Update' : 'Create'} Department
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Transfer Modal */}
-      <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
+      <Dialog open={isTransferModalOpen} onOpenChange={() => setIsTransferModalOpen(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Transfer Employee</DialogTitle>
+            <DialogTitle>Employee Transfer</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleTransferSubmit} className="space-y-4">
             <div>
               <Label>Employee</Label>
               <Select
                 value={transferData.employeeId}
-                onValueChange={(value) => setTransferData({ ...transferData, employeeId: value })}
+                onValueChange={(value) => {
+                  const employee = employees.find(e => e.id === value);
+                  setTransferData(prev => ({
+                    ...prev,
+                    employeeId: value,
+                    fromDepartmentId: employee?.departmentId || ''
+                  }));
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an employee" />
+                  <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees.map((employee) => (
+                  {employees.map(employee => (
                     <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
+                      <div className="flex items-center gap-2">
+                        <span>{employee.name}</span>
+                        <span className="text-muted-foreground text-sm">
+                          ({employee.email})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>From Department</Label>
+              <Select value={transferData.fromDepartmentId} disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Automatically filled" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map(dept => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -436,13 +422,13 @@ export default function DepartmentsPage() {
               <Label>To Department</Label>
               <Select
                 value={transferData.toDepartmentId}
-                onValueChange={(value) => setTransferData({ ...transferData, toDepartmentId: value })}
+                onValueChange={(value) => setTransferData(prev => ({ ...prev, toDepartmentId: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select destination department" />
+                  <SelectValue placeholder="Select target department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.map((dept) => (
+                  {departments.map(dept => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
                     </SelectItem>
@@ -452,70 +438,16 @@ export default function DepartmentsPage() {
             </div>
 
             <div>
-              <Label>Reason for Transfer</Label>
+              <Label>Reason</Label>
               <Textarea
                 value={transferData.reason}
-                onChange={(e) => setTransferData({ ...transferData, reason: e.target.value })}
-                placeholder="Explain the reason for transfer"
+                onChange={(e) => setTransferData(prev => ({ ...prev, reason: e.target.value }))}
                 required
               />
             </div>
 
             <DialogFooter>
-              <Button type="submit">Submit Transfer Request</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Announcement Modal */}
-      <Dialog open={isAnnouncementModalOpen} onOpenChange={setIsAnnouncementModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Department Announcement</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAnnouncementSubmit} className="space-y-4">
-            <div>
-              <Label>Department</Label>
-              <Select
-                value={announcementData.departmentId}
-                onValueChange={(value) => setAnnouncementData({ ...announcementData, departmentId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Title</Label>
-              <Input
-                value={announcementData.title}
-                onChange={(e) => setAnnouncementData({ ...announcementData, title: e.target.value })}
-                placeholder="Announcement title"
-                required
-              />
-            </div>
-
-            <div>
-              <Label>Message</Label>
-              <Textarea
-                value={announcementData.message}
-                onChange={(e) => setAnnouncementData({ ...announcementData, message: e.target.value })}
-                placeholder="Write your announcement message"
-                required
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="submit">Send Announcement</Button>
+              <Button type="submit">Submit Transfer</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -5,8 +5,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import axios from 'axios'; // Import axios
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -33,21 +35,18 @@ export default function LoginPage() {
 
       // Redirect user based on their role
       if (userRole === 'admin') {
-        window.location.href = '/admin/dashboard';  // Redirect to admin dashboard
+        router.push('/admin/dashboard');
       } else if (userRole === 'manager') {
-        window.location.href = '/manager/dashboard';  // Redirect to manager dashboard
+        router.push('/manager/dashboard');
       } else if (userRole === 'employee') {
-        window.location.href = '/employee/dashboard';  // Redirect to employee dashboard
-      } else {
-        alert('Unknown role, please contact support.');
+        router.push('/employee/dashboard');
       }
 
-      setIsLoading(false);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Login error', error);
-      setIsLoading(false);
-      // Handle login error (show error message to the user)
       alert('Invalid login credentials');
+    } finally {
+      setIsLoading(false);
     }
   };
 

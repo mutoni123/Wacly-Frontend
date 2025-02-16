@@ -19,6 +19,9 @@ import {
   UserGroupIcon,
   CogIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '@/contexts/AuthContext'; 
+
+
 
 // Types
 interface NavItem {
@@ -28,29 +31,20 @@ interface NavItem {
   subItems?: NavItem[];
 }
 
-interface UserProfile {
-  name: string;
-  role: string;
-  avatar?: string;
-}
-
 interface INavItemProps {
   item: NavItem;
   depth?: number;
 }
 
-const ManagerSidebar = () => {
+const ManagerSidebar: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const { user } = useAuth();
 
-  const user: UserProfile = {
-    name: 'Manager Name',
-    role: 'Department Manager',
-    avatar: '/avatar.png',
-  };
+  console.log('ManagerSidebar - Auth state:', { user, isOpen, isMobile });
 
   const navItems: NavItem[] = [
     {
@@ -233,67 +227,79 @@ const ManagerSidebar = () => {
     </nav>
   );
 
-  const UserProfile = () => (
-    <div className="relative mt-auto border-t border-blue-700" id="user-menu">
-      <button
-        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
-        aria-expanded={isUserMenuOpen}
-        aria-controls="user-menu-dropdown"
-      >
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0">
-          {user.avatar ? (
-            <Image src={user.avatar} alt={user.name} width={32} height={32} className="rounded-full" />
-          ) : (
-            <UserCircleIcon className="w-8 h-8 text-white" aria-hidden="true" />
+  const UserProfile: React.FC = () => {
+    const { user, logout } = useAuth();
+
+    console.log('UserProfile - Current user:', user);
+
+    if (!user) {
+      console.log('UserProfile - No user found');
+      return null;
+    }
+
+    return (
+      <div className="relative mt-auto border-t border-blue-700" id="user-menu">
+        <button
+          onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+          className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
+          aria-expanded={isUserMenuOpen}
+          aria-controls="user-menu-dropdown"
+        >
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0">
+            {user.avatar ? (
+              <Image src={user.avatar} alt={user.name} width={32} height={32} className="rounded-full" />
+            ) : (
+              <UserCircleIcon className="w-8 h-8 text-white" aria-hidden="true" />
+            )}
+          </div>
+          {(isOpen || isMobile) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-1 items-center justify-between"
+            >
+              <div className="flex flex-col text-left">
+                <span className="font-medium text-sm">{user.name || 'Loading...'}</span>
+                <span className="text-xs text-blue-200">{user.role || 'Loading...'}</span>
+              </div>
+              <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
+            </motion.div>
           )}
-        </div>
-        {(isOpen || isMobile) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-1 items-center justify-between"
-          >
-            <div className="flex flex-col text-left">
-              <span className="font-medium text-sm">{user.name}</span>
-              <span className="text-xs text-blue-200">{user.role}</span>
-            </div>
-            <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
-          </motion.div>
-        )}
-      </button>
-      <AnimatePresence>
-        {isUserMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
-            id="user-menu-dropdown"
-          >
-            <Link
-              href="/profile"
-              className="block px-4 py-2 hover:bg-blue-600 transition-colors"
-              onClick={() => setIsUserMenuOpen(false)}
+        </button>
+        <AnimatePresence>
+          {isUserMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
+              id="user-menu-dropdown"
             >
-              Account Settings
-            </Link>
-            <button
-              onClick={() => {
-                console.log('Logout clicked');
-              }}
-              className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
-            >
-              Logout
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+              <Link
+                href="/profile"
+                className="block px-4 py-2 hover:bg-blue-600 transition-colors"
+                onClick={() => setIsUserMenuOpen(false)}
+              >
+                Account Settings
+              </Link>
+              <button
+                onClick={async () => {
+                  setIsUserMenuOpen(false);
+                  await logout();
+                }}
+                className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
+              >
+                Logout
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
-    <>
+    <aside className="relative">
       {(!isOpen || !isMobile) && (
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -303,12 +309,14 @@ const ManagerSidebar = () => {
           <Bars3Icon className="w-6 h-6" aria-hidden="true" />
         </button>
       )}
+
       {isMobile && isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-30"
           onClick={() => setIsOpen(false)}
         />
       )}
+
       <AnimatePresence mode="wait">
         {(isOpen || !isMobile) && (
           <motion.div
@@ -323,11 +331,11 @@ const ManagerSidebar = () => {
           >
             <CompanyLogo />
             <Navigation />
-            <UserProfile />
+            <UserProfile isOpen={isOpen} isMobile={isMobile}/> {/* Add UserProfile component here */}
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </aside>
   );
 };
 

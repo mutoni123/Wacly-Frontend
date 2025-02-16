@@ -16,6 +16,7 @@ import {
   ClipboardDocumentListIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Types
 interface NavItem {
@@ -25,11 +26,7 @@ interface NavItem {
   subItems?: NavItem[];
 }
 
-interface UserProfile {
-  name: string;
-  role: string;
-  avatar?: string;
-}
+
 
 interface INavItemProps {
   item: NavItem;
@@ -42,12 +39,7 @@ const EmployeeSidebar = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-
-  const user: UserProfile = {
-    name: 'Employee Name',
-    role: 'Employee',
-    avatar: '/avatar.png',
-  };
+  const { user, logout } = useAuth();
 
   const navItems: NavItem[] = [
     {
@@ -194,7 +186,14 @@ const EmployeeSidebar = () => {
   );
 
   // ... rest of the component remains the same
-  const UserProfile = () => (
+const UserProfile = () => {
+  const { user, logout } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  return (
     <div className="relative mt-auto border-t border-blue-700" id="user-menu">
       <button
         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -216,8 +215,8 @@ const EmployeeSidebar = () => {
             className="flex flex-1 items-center justify-between"
           >
             <div className="flex flex-col text-left">
-              <span className="font-medium text-sm">{user.name}</span>
-              <span className="text-xs text-blue-200">{user.role}</span>
+              <span className="font-medium text-sm">{user.name || 'Loading...'}</span>
+              <span className="text-xs text-blue-200">{user.role || 'Loading...'}</span>
             </div>
             <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
           </motion.div>
@@ -240,8 +239,9 @@ const EmployeeSidebar = () => {
               Account Settings
             </Link>
             <button
-              onClick={() => {
-                console.log('Logout clicked');
+              onClick={async () => {
+                setIsUserMenuOpen(false);
+                await logout();
               }}
               className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
             >
@@ -252,7 +252,7 @@ const EmployeeSidebar = () => {
       </AnimatePresence>
     </div>
   );
-
+};
   return (
     <>
       {(!isOpen || !isMobile) && (
