@@ -2,23 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply overflow-x-hidden;
-}
-/* In your global CSS file */
-@layer utilities {
-  /* Chrome, Safari and Opera */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
+/* Base Styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground overflow-x-hidden;
   }
 
-  /* IE, Edge and Firefox */
-  .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
-}
-@layer base {
+  /* Theme Variables */
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
@@ -39,13 +33,19 @@ body {
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
+    
+    /* Chart Colors */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    
+    /* Border Radius */
     --radius: 0.5rem;
   }
+
+  /* Dark Theme Variables */
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -66,6 +66,8 @@ body {
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
+    
+    /* Dark Theme Chart Colors */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -73,21 +75,87 @@ body {
     --chart-5: 340 75% 55%;
   }
 }
-@layer base {
-  * {
-    @apply border-border;
+
+/* Utility Classes */
+@layer utilities {
+  /* Hide Scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-  body {
-    @apply bg-background text-foreground;
+
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
   }
-}
-/* Add to your global CSS */
-[data-state="active"] .tab-indicator {
-  background: #3b82f6;
-  height: 3px;
-  margin-top: 2px;
 }
 
-.tab-content {
-  @apply transition-all duration-300 ease-in-out;
+/* Component Styles */
+@layer components {
+  /* Tab Indicator */
+  [data-state="active"] .tab-indicator {
+    @apply bg-blue-500;
+    height: 3px;
+    margin-top: 2px;
+  }
+
+  /* Tab Content Transitions */
+  .tab-content {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* Custom Scrollbar - Optional */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary/50;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/50 rounded-full hover:bg-muted-foreground/70 transition-colors;
+  }
+}
+
+/* Animation Utilities */
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.3s ease-in-out;
+  }
+
+  .animate-out {
+    animation: animate-out 0.3s ease-in-out;
+  }
+
+  @keyframes animate-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes animate-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+}
+
+/* Focus Styles */
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
 }

@@ -12,7 +12,6 @@ import {
   DocumentTextIcon,
   ChevronDownIcon,
   Bars3Icon,
-  UserCircleIcon,
   ClipboardDocumentListIcon,
   BellIcon,
   ChartBarIcon,
@@ -227,74 +226,92 @@ const ManagerSidebar: React.FC = () => {
     </nav>
   );
 
-  const UserProfile: React.FC = () => {
+  const UserProfile: React.FC<{ isOpen: boolean; isMobile: boolean }> = ({ isOpen, isMobile }) => {
     const { user, logout } = useAuth();
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-    console.log('UserProfile - Current user:', user);
-
-    if (!user) {
-      console.log('UserProfile - No user found');
+    if (!user?.firstName || !user?.lastName) {
+      console.log('UserProfile - Invalid user data:', user);
       return null;
     }
+    // Get user initials
+    const userInitials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
     return (
-      <div className="relative mt-auto border-t border-blue-700" id="user-menu">
-        <button
-          onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-          className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
-          aria-expanded={isUserMenuOpen}
-          aria-controls="user-menu-dropdown"
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0">
-            {user.avatar ? (
-              <Image src={user.avatar} alt={user.name} width={32} height={32} className="rounded-full" />
-            ) : (
-              <UserCircleIcon className="w-8 h-8 text-white" aria-hidden="true" />
+        <div className="relative mt-auto border-t border-blue-700" id="user-menu">
+          <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
+              aria-expanded={isUserMenuOpen}
+              aria-controls="user-menu-dropdown"
+              aria-label="User menu"
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center">
+          <span className="text-sm font-medium text-white">
+            {userInitials}
+          </span>
+            </div>
+            {(isOpen || isMobile) && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-1 items-center justify-between"
+                >
+                  <div className="flex flex-col text-left overflow-hidden">
+              <span className="font-medium text-sm truncate">
+                {`${user.firstName} ${user.lastName}`}
+              </span>
+                    <div className="flex flex-col text-xs text-blue-200">
+                      <span className="truncate">{user.role}</span>
+                      <span className="truncate">{user.department}</span>
+                    </div>
+                  </div>
+                  <ChevronDownIcon
+                      className={`w-5 h-5 transform transition-transform ${
+                          isUserMenuOpen ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden="true"
+                  />
+                </motion.div>
             )}
-          </div>
-          {(isOpen || isMobile) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-1 items-center justify-between"
-            >
-              <div className="flex flex-col text-left">
-                <span className="font-medium text-sm">{user.name || 'Loading...'}</span>
-                <span className="text-xs text-blue-200">{user.role || 'Loading...'}</span>
-              </div>
-              <ChevronDownIcon className="w-5 h-5" aria-hidden="true" />
-            </motion.div>
-          )}
-        </button>
-        <AnimatePresence>
-          {isUserMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
-              id="user-menu-dropdown"
-            >
-              <Link
-                href="/profile"
-                className="block px-4 py-2 hover:bg-blue-600 transition-colors"
-                onClick={() => setIsUserMenuOpen(false)}
-              >
-                Account Settings
-              </Link>
-              <button
-                onClick={async () => {
-                  setIsUserMenuOpen(false);
-                  await logout();
-                }}
-                className="w-full text-left px-4 py-2 text-red-300 hover:bg-red-700 hover:text-white transition-colors"
-              >
-                Logout
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </button>
+
+          <AnimatePresence>
+            {isUserMenuOpen && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
+                    id="user-menu-dropdown"
+                >
+                  <div className="px-4 py-2 border-b border-blue-600">
+                    <div className="text-sm font-medium">
+                      {`${user.firstName} ${user.lastName}`}
+                    </div>
+                    <div className="text-xs text-blue-200">{user.department}</div>
+                    <div className="text-xs text-blue-200">{user.role}</div>
+                  </div>
+                  <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm hover:bg-blue-600 transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                  >
+                    Account Settings
+                  </Link>
+                  <button
+                      onClick={async () => {
+                        setIsUserMenuOpen(false);
+                        await logout();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-700 hover:text-white transition-colors"
+                  >
+                    Logout
+                  </button>
+                </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
     );
   };
 
@@ -331,7 +348,7 @@ const ManagerSidebar: React.FC = () => {
           >
             <CompanyLogo />
             <Navigation />
-            <UserProfile isOpen={isOpen} isMobile={isMobile}/> {/* Add UserProfile component here */}
+            <UserProfile isOpen={isOpen} isMobile={isMobile} />
           </motion.div>
         )}
       </AnimatePresence>
