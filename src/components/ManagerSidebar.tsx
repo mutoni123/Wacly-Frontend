@@ -13,10 +13,8 @@ import {
   ChevronDownIcon,
   Bars3Icon,
   ClipboardDocumentListIcon,
-  BellIcon,
   ChartBarIcon,
   UserGroupIcon,
-  CogIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext'; 
 
@@ -39,7 +37,7 @@ const ManagerSidebar: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [, setIsUserMenuOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const { user } = useAuth();
 
@@ -77,39 +75,18 @@ const ManagerSidebar: React.FC = () => {
       icon: CalendarIcon,
       subItems: [
         { name: 'Leave Requests', href: '/manager/leave/requests', icon: DocumentTextIcon },
-        { name: 'Leave Calendar', href: '/manager/leave/calendar', icon: CalendarIcon },
         { name: 'Leave Reports', href: '/manager/leave/reports', icon: ChartBarIcon },
       ],
     },
-    {
-      name: 'Finance',
-      href: '/manager/finance',
-      icon: ChartBarIcon,
-      subItems: [
-        { name: 'Budget Overview', href: '/manager/finance/budget', icon: ChartBarIcon },
-        { name: 'Expense Reports', href: '/manager/finance/expenses', icon: DocumentTextIcon },
-        { name: 'Financial Reports', href: '/manager/finance/reports', icon: ClipboardDocumentListIcon },
-      ],
-    },
+    
     {
       name: 'Reports',
       href: '/manager/reports',
       icon: ChartBarIcon,
       subItems: [
-        { name: 'Team Performance', href: '/manager/reports/performance', icon: ChartBarIcon },
         { name: 'Attendance Reports', href: '/manager/reports/attendance', icon: DocumentTextIcon },
         { name: 'Department Analytics', href: '/manager/reports/analytics', icon: ChartBarIcon },
       ],
-    },
-    {
-      name: 'Department Settings',
-      href: '/manager/settings',
-      icon: CogIcon,
-    },
-    {
-      name: 'Notifications',
-      href: '/manager/notifications',
-      icon: BellIcon,
     },
   ];
 

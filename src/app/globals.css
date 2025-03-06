@@ -159,3 +159,29 @@
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
+
+.toast-success {
+  background-color: hsl(142.1 76.2% 36.3%);
+  color: white;
+}
+
+.toast-warning {
+  background-color: hsl(48 96.5% 53.9%);
+  color: white;
+}
+
+.toast-error {
+  background-color: hsl(0 84.2% 60.2%);
+  color: white;
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

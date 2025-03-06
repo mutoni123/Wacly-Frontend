@@ -5,20 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import axios from 'axios';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-
-interface LoginResponse {
-  accessToken: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-    department: string;
-  };
-}
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api/auth',
@@ -28,7 +15,6 @@ const api = axios.create({
 });
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');

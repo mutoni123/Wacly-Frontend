@@ -1,6 +1,5 @@
 'use client';
 
-import TeamTable from '@/components/Tables/TeamTable';
 import TasksOverview from '@/components/TasksOverview';
 
 export default function ManagerDashboard() {
@@ -97,7 +96,7 @@ export default function ManagerDashboard() {
             <div className="lg:col-span-2 bg-white rounded-lg shadow-md">
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Team Members</h2>
-                <TeamTable />
+                
               </div>
             </div>
 

@@ -9,7 +9,6 @@ import {
   HomeIcon,
   UsersIcon,
   CalendarIcon,
-  CogIcon,
   ChevronDownIcon,
   Bars3Icon,
   BriefcaseIcon,
@@ -17,7 +16,7 @@ import {
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { UserProfile } from '@/components/UserProfile';
-import { useAuth } from '@/contexts/AuthContext';
+import { Clock } from 'lucide-react';
 
 // Types
 interface NavItem {
@@ -37,7 +36,6 @@ export default function AdminSidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const { user } = useAuth(); // Get user from AuthContext instead of local state
 
   const navItems: NavItem[] = [
     {
@@ -80,9 +78,9 @@ export default function AdminSidebar() {
       ],
     },
     {
-      name: 'Settings',
-      href: '/admin/settings',
-      icon: CogIcon,
+      name: 'Attendance Management',
+      href: '/admin/attendance',
+      icon: Clock,
     },
   ];
 
