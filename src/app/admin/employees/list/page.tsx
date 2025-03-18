@@ -78,6 +78,7 @@ interface Department {
 
 // Constants
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000';
+
 export default function EmployeeListPage() {
   const { toast } = useToast();
 
@@ -190,18 +191,18 @@ export default function EmployeeListPage() {
 
     fetchEmployees(pagination.page, selectedRole);
   }, []);
-    // Main Employees Fetching Function
+   // Main Employees Fetching Function
     const fetchEmployees = useCallback(async (page = 1, role = 'all') => {
       try {
         setLoading(true);
         setError(null);
-  
+
         const token = localStorage.getItem('token');
         if (!token) {
           window.location.href = '/login';
           return;
         }
-  
+
         // Build query parameters
         const params = new URLSearchParams({
           page: page.toString(),
@@ -209,14 +210,14 @@ export default function EmployeeListPage() {
           role: role === 'all' ? '' : role,
           search: searchQuery.trim(),
         });
-  
+
         const response = await fetch(`${API_BASE}/api/users?${params}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-  
+
         if (response.status === 401) {
           localStorage.removeItem('token');
           toast({
@@ -227,36 +228,39 @@ export default function EmployeeListPage() {
           window.location.href = '/login';
           return;
         }
-  
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Failed to fetch employees');
         }
-  
+
         const data = await response.json();
         
         // Handle both array and paginated response formats
         const employeeData = Array.isArray(data) ? data : data.users || [];
         const total = Array.isArray(data) ? data.length : data.total || 0;
-  
+        
         setEmployees(employeeData);
         setPagination(prev => ({
           ...prev,
           total,
-          page,
           page: Math.min(page, Math.ceil(total / prev.limit))
         }));
-  
-      } catch (err) {
+
+      } catch (err: unknown) {
         console.error('Fetch employees error:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch employees');
         toast({
           title: "Error",
-          description: "Failed to load employees",
+          description: err instanceof Error ? err.message : "Failed to load employees",
           variant: "destructive",
         });
         setEmployees([]);
-        setPagination(prev => ({ ...prev, total: 0, page: 1 }));
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+          page: 1
+        }));
       } finally {
         setLoading(false);
       }
@@ -633,10 +637,14 @@ export default function EmployeeListPage() {
           description: "PDF preview generated successfully",
           variant: "default",
         });
-      } catch (error) {
+      } catch (err: unknown) {
+        console.error('PDF Preview Error:', err);
+        
         toast({
           title: "Error",
-          description: "Failed to generate PDF preview",
+          description: err instanceof Error 
+            ? err.message 
+            : "Failed to generate PDF preview",
           variant: "destructive",
         });
       } finally {
@@ -656,10 +664,14 @@ export default function EmployeeListPage() {
           description: "PDF downloaded successfully",
           variant: "default",
         });
-      } catch (error) {
+      } catch (err: unknown) {
+        console.error('PDF Download Error:', err);
+        
         toast({
           title: "Error",
-          description: "Failed to download PDF",
+          description: err instanceof Error 
+            ? err.message 
+            : "Failed to download PDF",
           variant: "destructive",
         });
       } finally {

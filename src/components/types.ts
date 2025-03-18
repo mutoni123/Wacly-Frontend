@@ -15,3 +15,6 @@ export interface DepartmentAnalytics {
   totalBudget: number;
   activeProjects: number;
 }
+
+export type TaskStatus = 'Pending' | 'In Progress' | 'Completed';
+export type TaskPriority = 'Low' | 'Medium' | 'High';

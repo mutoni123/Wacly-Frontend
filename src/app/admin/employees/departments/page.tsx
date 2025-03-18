@@ -112,6 +112,13 @@ interface Department {
   updated_at: string;
 }
 
+interface DepartmentResponse {
+    success: boolean;
+    count: number;
+    data: Department[];
+}
+
+
 interface TransferData {
     employeeId: string;
     fromDept: string;
@@ -161,70 +168,80 @@ export default function DepartmentPage() {
 
     // Main Data Fetching Function
     const fetchDepartments = useCallback(async () => {
-      try {
-          const token = localStorage.getItem('token');
-          if (!token) {
-              toast({
-                  variant: "destructive",
-                  title: "Authentication Error",
-                  description: "Please login to continue",
-              });
-              window.location.href = '/login';
-              return;
-          }
-  
-          setLoading(true);
-  
-          // Fetch both departments and users
-          const [departmentsResponse, usersResponse] = await Promise.all([
-              fetch(`${API_BASE}/api/departments`, {
-                  headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json',
-                  }
-              }),
-              fetch(`${API_BASE}/api/users`, {
-                  headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json',
-                  }
-              })
-          ]);
-  
-          if (!departmentsResponse.ok || !usersResponse.ok) {
-              throw new Error('Failed to fetch data');
-          }
-  
-          const departmentsData = await departmentsResponse.json();
-          const usersData = await usersResponse.json();
-  
-          // Set departments
-          const departments = Array.isArray(departmentsData) ? departmentsData : [];
-          setDepartments(departments);
-  
-          // Process users data - note that it's nested in a pagination structure
-          const users = usersData.users || [];  // Extract users array from pagination structure
-          const employeesList = users.filter((user: User) => 
-              user.id?.startsWith('WACLY-EMP-') && 
-              user.first_name && 
-              user.last_name
-          );
-  
-          setEmployees(employeesList);
-          console.log('Processed Data:', { departments, employees: employeesList });
-  
-      } catch (err) {
-          console.error('Error fetching data:', err);
-          setError(err instanceof Error ? err.message : 'Failed to fetch data');
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to load data",
-          });
-      } finally {
-          setLoading(false);
-      }
-  }, [toast]);
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                toast({
+                    variant: "destructive",
+                    title: "Authentication Error",
+                    description: "Please login to continue",
+                });
+                window.location.href = '/login';
+                return;
+            }
+
+            setLoading(true);
+
+            // Fetch both departments and users
+            const [departmentsResponse, usersResponse] = await Promise.all([
+                fetch(`${API_BASE}/api/departments`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                }),
+                fetch(`${API_BASE}/api/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                })
+            ]);
+
+            if (!departmentsResponse.ok || !usersResponse.ok) {
+                throw new Error('Failed to fetch data');
+            }
+
+            const departmentsData = await departmentsResponse.json() as DepartmentResponse;
+            const usersData = await usersResponse.json();
+
+            // Set departments with proper response structure handling
+            if (departmentsData.success) {
+                setDepartments(departmentsData.data);
+            } else {
+                throw new Error('Failed to fetch departments');
+            }
+
+            // Process users data - accessing the users directly from the response
+            if (usersData && usersData.users) {
+                const employeesList = usersData.users.filter((user: User) =>
+                    user.id?.startsWith('WACLY-EMP-') &&
+                    user.first_name &&
+                    user.last_name
+                );
+                setEmployees(employeesList);
+            } else {
+                console.error('Unexpected users response structure:', usersData);
+                throw new Error('Invalid users data structure');
+            }
+
+            console.log('Processed Data:', {
+                departments: departmentsData.data,
+                employeesList: employees
+            });
+
+        } catch (err) {
+            console.error('Error fetching data:', err);
+            setError(err instanceof Error ? err.message : 'Failed to fetch data');
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to load data",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
 
     // Initial Data Load
     useEffect(() => {
@@ -246,20 +263,22 @@ export default function DepartmentPage() {
 
     // Auto-populate department when employee is selected
     useEffect(() => {
-      if (transferData.employeeId) {
+        if (transferData.employeeId) {
           const employee = employees.find(emp => emp.id === transferData.employeeId);
           if (employee?.department_id) {
-              setTransferData(prev => ({...prev, fromDept: employee.department_id
-              }));
-              
-              console.log('Updated transfer data:', {
-                  employeeId: transferData.employeeId,
-                  fromDept: employee.department_id,
-                  employee: employee
-              });
+            setTransferData(prev => ({
+              ...prev,
+              fromDept: employee.department_id || ''  // Provide empty string as fallback
+            }));
+            console.log('Updated transfer data:', {
+              employeeId: transferData.employeeId,
+              fromDept: employee.department_id,
+              employee: employee
+            });
           }
-      }
-    }, [transferData.employeeId, employees]);
+        }
+      }, [transferData.employeeId, employees]);
+
     // Filter departments based on search
     const filteredDepartments = departments.filter(dept =>
         dept.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -475,70 +494,100 @@ export default function DepartmentPage() {
     // Export Functions
     const exportToPDF = async () => {
         try {
-            const element = document.getElementById('department-list');
-            if (!element) return;
-
-            const canvas = await html2canvas(element);
-            const pdf = new jsPDF();
-
-            pdf.setFontSize(18);
-            pdf.text('Department List', 105, 15, { align: 'center' });
-            pdf.setFontSize(10);
-            const date = new Date().toLocaleString();
-            pdf.text(`Generated on: ${date}`, 10, 25);
-            pdf.text(`Total Departments: ${departments.length}`, 10, 30);
-
-            const imgData = canvas.toDataURL('image/png');
-            pdf.addImage(imgData, 'PNG', 10, 35, 190, 0);
-            pdf.save('departments.pdf');
-
-            toast({
-                className: "bg-green-500 text-white",
-                title: "Success",
-                description: "PDF exported successfully"
-            });
-        } catch (error) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to export PDF"
-            });
+        const element = document.getElementById('department-list');
+        if (!element) {
+            throw new Error('Element not found');
+        }
+    
+        const canvas = await html2canvas(element);
+        const pdf = new jsPDF();
+        
+        // Add title
+        pdf.setFontSize(18);
+        pdf.text('Department List', 105, 15, { align: 'center' });
+        
+        // Add metadata
+        pdf.setFontSize(10);
+        const date = new Date().toLocaleString();
+        pdf.text(`Generated on: ${date}`, 10, 25);
+        pdf.text(`Total Departments: ${departments.length}`, 10, 30);
+    
+        // Add table image
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 10, 35, 190, 0);
+        
+        // Save PDF
+        pdf.save('departments.pdf');
+    
+        toast({
+            className: "bg-green-500 text-white",
+            title: "Success",
+            description: "PDF exported successfully"
+        });
+    
+        } catch (error: unknown) {
+        console.error('PDF Export Error:', error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: error instanceof Error 
+            ? error.message 
+            : "Failed to export PDF"
+        });
         }
     };
 
     const exportToCSV = () => {
         try {
-            const csvData = departments.map(dept => ({
-                'Department ID': dept.id,
-                'Name': dept.name,
-                'Description': dept.description,
-                'Manager': dept.manager ? `${dept.manager.first_name} ${dept.manager.last_name}` : 'N/A',
-                'Employee Count': dept.employee_count
-            }));
-
-            const csv = Papa.unparse(csvData);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.href = url;
-            link.setAttribute('download', 'departments.csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            toast({
-                className: "bg-green-500 text-white",
-                title: "Success",
-                description: "CSV exported successfully"
-            });
-        } catch (error) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to export CSV"
-            });
+          if (!departments.length) {
+            throw new Error('No departments data available');
+          }
+      
+          // Prepare CSV data
+          const csvData = departments.map(dept => ({
+            'Department ID': dept.id,
+            'Name': dept.name,
+            'Description': dept.description,
+            'Manager': dept.manager 
+              ? `${dept.manager.first_name} ${dept.manager.last_name}`
+              : 'N/A',
+            'Employee Count': dept.employee_count
+          }));
+      
+          // Generate CSV
+          const csv = Papa.unparse(csvData);
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          
+          // Create and trigger download
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.href = url;
+          link.setAttribute('download', `departments_${new Date().toISOString().split('T')[0]}.csv`);
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup
+          URL.revokeObjectURL(url);
+      
+          toast({
+            className: "bg-green-500 text-white",
+            title: "Success",
+            description: "CSV exported successfully"
+          });
+      
+        } catch (error: unknown) {
+          console.error('CSV Export Error:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error instanceof Error 
+              ? error.message 
+              : "Failed to export CSV"
+          });
         }
-    };
+      };
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
@@ -655,7 +704,7 @@ export default function DepartmentPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
-                            ) : filteredDepartments.length === 0 ? (
+                            ) : departments.length === 0 ? (
                                 // No departments found
                                 <Card className="col-span-full shadow-sm">
                                     <CardContent className="pt-6">
@@ -674,105 +723,108 @@ export default function DepartmentPage() {
                                 </Card>
                             ) : (
                                 // Department cards
-                                filteredDepartments.map((dept) => (
-                                    <Card key={dept.id} className="shadow-sm overflow-hidden">
-                                        <CardHeader className="pb-2">
-                                            <div className="flex justify-between items-start">
-                                                <CardTitle className="text-xl">{dept.name}</CardTitle>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <ChevronDown className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() => {
+                                departments
+                                    .filter(dept => 
+                                        dept.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                        (dept.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                    )
+                                    .map((dept) => (
+                                        <Card key={dept.id} className="shadow-sm overflow-hidden">
+                                            <CardHeader className="pb-2">
+                                                <div className="flex justify-between items-start">
+                                                    <CardTitle className="text-xl">{dept.name}</CardTitle>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => {
                                                                 setFormData({
                                                                     id: dept.id,
                                                                     name: dept.name,
                                                                     description: dept.description || '',
                                                                 });
                                                                 setIsDeptModalOpen(true);
-                                                            }}
-                                                        >
-                                                            <Edit className="w-4 h-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-red-600"
-                                                            onClick={() => {
-                                                                setDepartmentToDelete(dept.id);
-                                                                setIsDeleteDialogOpen(true);
-                                                            }}
-                                                        >
-                                                            <Trash className="w-4 h-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                            <CardDescription>
-                                                {dept.description || 'No description provided'}
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="pb-2">
-                                            <div className="space-y-2 text-sm">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-gray-500">Manager:</span>
-                                                    <span className="font-medium">
-                                                    {dept.manager ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <Avatar className="h-6 w-6">
-                                                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                                                                        {`${dept.manager.first_name[0]}${dept.manager.last_name[0]}`}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                                <span>{`${dept.manager.first_name} ${dept.manager.last_name}`}</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Not assigned'
-                                                        )}
-                                                    </span>
+                                                            }}>
+                                                                <Edit className="w-4 h-4 mr-2" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem 
+                                                                className="text-red-600"
+                                                                onClick={() => {
+                                                                    setDepartmentToDelete(dept.id);
+                                                                    setIsDeleteDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                <Trash className="w-4 h-4 mr-2" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-gray-500">Employees:</span>
-                                                    <Badge variant="secondary">{dept.employee_count}</Badge>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                        <CardFooter>
-                                            <Button
-                                                variant="ghost"
-                                                className="w-full justify-between"
-                                                onClick={() => setExpandedDepartment(
-                                                    expandedDepartment === dept.id ? null : dept.id
-                                                )}
-                                            >
-                                                <span>View Details</span>
-                                                {expandedDepartment === dept.id ? (
-                                                    <ChevronUp className="h-4 w-4" />
-                                                ) : (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </CardFooter>
-                                        {expandedDepartment === dept.id && (
-                                            <div className="px-6 pb-4 text-sm space-y-2 bg-gray-50">
-                                                <div className="py-2">
-                                                    <div className="mb-1 font-medium">Created:</div>
-                                                    <div>{new Date(dept.created_at).toLocaleDateString()}</div>
-                                                </div>
-                                                {dept.updated_at && (
-                                                    <div className="py-2 border-t border-gray-100">
-                                                        <div className="mb-1 font-medium">Last Updated:</div>
-                                                        <div>{new Date(dept.updated_at).toLocaleDateString()}</div>
+                                                <CardDescription>
+                                                    {dept.description || 'No description provided'}
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pb-2">
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-gray-500">Manager:</span>
+                                                        <span className="font-medium">
+                                                            {dept.manager ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Avatar className="h-6 w-6">
+                                                                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                                                            {`${dept.manager.first_name[0]}${dept.manager.last_name[0]}`}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                    <span>{`${dept.manager.first_name} ${dept.manager.last_name}`}</span>
+                                                                </div>
+                                                            ) : (
+                                                                'Not assigned'
+                                                            )}
+                                                        </span>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </Card>
-                                ))
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-gray-500">Employees:</span>
+                                                        <Badge variant="secondary">{dept.employee_count}</Badge>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                            <CardFooter>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    className="w-full justify-between"
+                                                    onClick={() => setExpandedDepartment(
+                                                        expandedDepartment === dept.id ? null : dept.id
+                                                    )}
+                                                >
+                                                    <span>View Details</span>
+                                                    {expandedDepartment === dept.id ? (
+                                                        <ChevronUp className="h-4 w-4" />
+                                                    ) : (
+                                                        <ChevronDown className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </CardFooter>
+                                            {expandedDepartment === dept.id && (
+                                                <div className="px-6 pb-4 text-sm space-y-2 bg-gray-50">
+                                                    <div className="py-2">
+                                                        <div className="mb-1 font-medium">Created:</div>
+                                                        <div>{new Date(dept.created_at).toLocaleDateString()}</div>
+                                                    </div>
+                                                    {dept.updated_at && (
+                                                        <div className="py-2 border-t border-gray-100">
+                                                            <div className="mb-1 font-medium">Last Updated:</div>
+                                                            <div>{new Date(dept.updated_at).toLocaleDateString()}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </Card>
+                                    ))
                             )}
                         </div>
                     </TabsContent>
@@ -873,49 +925,71 @@ export default function DepartmentPage() {
                     <TabsContent value="analytics" className="pt-6">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Employee Distribution Chart */}
-                            <Card className="shadow-sm">
-                                <CardHeader>
-                                    <CardTitle>Employee Distribution</CardTitle>
-                                    <CardDescription>Department staffing breakdown</CardDescription>
+                            <Card className="shadow-sm hover:shadow-md transition-all">
+                                <CardHeader className="border-b pb-4">
+                                    <CardTitle className="text-xl font-semibold text-gray-800">
+                                    Employee Distribution
+                                    </CardTitle>
+                                    <CardDescription className="text-sm text-gray-500">
+                                    Department staffing breakdown
+                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pt-6">
                                     {departments.length === 0 ? (
-                                        <div className="h-[300px] flex items-center justify-center text-gray-500">
-                                            <p>No department data available</p>
-                                        </div>
+                                    <div className="h-[300px] flex flex-col items-center justify-center text-gray-500 space-y-2">
+                                        <Users className="h-12 w-12 opacity-50" />
+                                        <p className="text-sm">No department data available</p>
+                                    </div>
                                     ) : (
-                                        <div className="h-[300px] w-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={departmentChartData}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        labelLine={false}
-                                                        outerRadius={80}
-                                                        fill="#8884d8"
-                                                        dataKey="value"
-                                                        nameKey="name"
-                                                        label={({name, percent}) => 
-                                                            `${name} ${(percent * 100).toFixed(0)}%`
-                                                        }
-                                                    >
-                                                        {departmentChartData.map((entry, index) => (
-                                                            <Cell 
-                                                                key={`cell-${index}`}
-                                                                fill={entry.fill}
-                                                            />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip 
-                                                        formatter={(value) => 
-                                                            [`${value} employees`, 'Count']
-                                                        }
-                                                    />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                    <div className="h-[300px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                            data={departmentChartData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={true}
+                                            outerRadius={90}
+                                            innerRadius={60}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                            nameKey="name"
+                                            label={({ name, percent }) => (
+                                                `${name} (${(percent * 100).toFixed(0)}%)`
+                                            )}
+                                            >
+                                            {departmentChartData.map((entry, index) => (
+                                                <Cell 
+                                                key={`cell-${index}`}
+                                                fill={COLORS[index % COLORS.length]}
+                                                strokeWidth={1}
+                                                stroke="#fff"
+                                                />
+                                            ))}
+                                            </Pie>
+                                            <Tooltip 
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                                padding: '8px 12px'
+                                            }}
+                                            formatter={(value) => [`${value} employees`, 'Count']}
+                                            />
+                                            <Legend 
+                                            layout="horizontal"
+                                            verticalAlign="bottom"
+                                            align="center"
+                                            wrapperStyle={{
+                                                paddingTop: '20px'
+                                            }}
+                                            iconType="circle"
+                                            iconSize={8}
+                                            />
+                                        </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                     )}
                                 </CardContent>
                             </Card>

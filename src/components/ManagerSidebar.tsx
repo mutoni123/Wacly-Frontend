@@ -65,7 +65,6 @@ const ManagerSidebar: React.FC = () => {
       icon: CalendarIcon,
       subItems: [
         { name: 'Team Attendance', href: '/manager/Attendance/team', icon: UsersIcon },
-        { name: 'Time Sheets', href: '/manager/Attendance/timesheets', icon: DocumentTextIcon },
         { name: 'Schedule Planning', href: '/manager/Attendance/schedule', icon: CalendarIcon },
       ],
     },
