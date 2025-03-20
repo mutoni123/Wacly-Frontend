@@ -16,9 +16,7 @@ import {
   ChartBarIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '@/contexts/AuthContext'; 
-
-
+import { UserProfile } from '@/components/UserProfile';
 
 // Types
 interface NavItem {
@@ -37,11 +35,7 @@ const ManagerSidebar: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [, setIsUserMenuOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const { user } = useAuth();
-
-  console.log('ManagerSidebar - Auth state:', { user, isOpen, isMobile });
 
   const navItems: NavItem[] = [
     {
@@ -54,9 +48,21 @@ const ManagerSidebar: React.FC = () => {
       href: '/manager/team',
       icon: UsersIcon,
       subItems: [
-        { name: 'Team Overview', href: '/manager/team/overview', icon: UserGroupIcon },
-        { name: 'Performance Reviews', href: '/manager/team/performance', icon: ChartBarIcon },
-        { name: 'Task Assignment', href: '/manager/team/tasks', icon: ClipboardDocumentListIcon },
+        {
+          name: 'Team Overview',
+          href: '/manager/team/overview',
+          icon: UserGroupIcon
+        },
+        {
+          name: 'Performance Reviews',
+          href: '/manager/team/performance',
+          icon: ChartBarIcon
+        },
+        {
+          name: 'Task Assignment',
+          href: '/manager/team/tasks',
+          icon: ClipboardDocumentListIcon
+        },
       ],
     },
     {
@@ -64,8 +70,16 @@ const ManagerSidebar: React.FC = () => {
       href: '/manager/Attendance',
       icon: CalendarIcon,
       subItems: [
-        { name: 'Team Attendance', href: '/manager/Attendance/team', icon: UsersIcon },
-        { name: 'Schedule Planning', href: '/manager/Attendance/schedule', icon: CalendarIcon },
+        {
+          name: 'Team Attendance',
+          href: '/manager/Attendance/team',
+          icon: UsersIcon
+        },
+        {
+          name: 'Schedule Planning',
+          href: '/manager/Attendance/schedule',
+          icon: CalendarIcon
+        },
       ],
     },
     {
@@ -73,18 +87,28 @@ const ManagerSidebar: React.FC = () => {
       href: '/manager/leave',
       icon: CalendarIcon,
       subItems: [
-        { name: 'Leave Requests', href: '/manager/leave/requests', icon: DocumentTextIcon },
-        { name: 'Leave Reports', href: '/manager/leave/reports', icon: ChartBarIcon },
+        {
+          name: 'Leave Requests',
+          href: '/manager/leave/requests',
+          icon: DocumentTextIcon
+        },
       ],
     },
-    
     {
       name: 'Reports',
       href: '/manager/reports',
       icon: ChartBarIcon,
       subItems: [
-        { name: 'Attendance Reports', href: '/manager/reports/attendance', icon: DocumentTextIcon },
-        { name: 'Department Analytics', href: '/manager/reports/analytics', icon: ChartBarIcon },
+        {
+          name: 'Attendance Reports',
+          href: '/manager/reports/attendance',
+          icon: DocumentTextIcon
+        },
+        {
+          name: 'Department Analytics',
+          href: '/manager/reports/analytics',
+          icon: ChartBarIcon
+        },
       ],
     },
   ];
@@ -94,17 +118,6 @@ const ManagerSidebar: React.FC = () => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const userMenu = document.getElementById('user-menu');
-      if (userMenu && !userMenu.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const toggleSubmenu = (itemName: string) => {
@@ -119,7 +132,13 @@ const ManagerSidebar: React.FC = () => {
     <div className="p-4 border-b border-blue-700">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-white flex-shrink-0 overflow-hidden">
-          <Image src="/logo.png" alt="Company Logo" width={40} height={40} className="object-cover" />
+          <Image
+            src="/logo.png"
+            alt="Company Logo"
+            width={40}
+            height={40}
+            className="object-cover"
+          />
         </div>
         {(isOpen || isMobile) && (
           <motion.div
@@ -144,9 +163,7 @@ const ManagerSidebar: React.FC = () => {
         <Link href={item.href}>
           <div
             className={`
-              flex items-center px-4 py-3 
-              hover:bg-blue-700 transition-colors
-              cursor-pointer
+              flex items-center px-4 py-3 hover:bg-blue-700 transition-colors cursor-pointer
               ${pathname === item.href ? 'bg-blue-700' : ''}
               ${depth > 0 ? 'pl-8' : ''}
             `}
@@ -201,95 +218,6 @@ const ManagerSidebar: React.FC = () => {
       </ul>
     </nav>
   );
-
-  const UserProfile: React.FC<{ isOpen: boolean; isMobile: boolean }> = ({ isOpen, isMobile }) => {
-    const { user, logout } = useAuth();
-    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-
-    if (!user?.firstName || !user?.lastName) {
-      console.log('UserProfile - Invalid user data:', user);
-      return null;
-    }
-    // Get user initials
-    const userInitials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
-
-    return (
-        <div className="relative mt-auto border-t border-blue-700" id="user-menu">
-          <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="w-full flex items-center gap-3 p-4 hover:bg-blue-700 transition-colors"
-              aria-expanded={isUserMenuOpen}
-              aria-controls="user-menu-dropdown"
-              aria-label="User menu"
-          >
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center">
-          <span className="text-sm font-medium text-white">
-            {userInitials}
-          </span>
-            </div>
-            {(isOpen || isMobile) && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-1 items-center justify-between"
-                >
-                  <div className="flex flex-col text-left overflow-hidden">
-              <span className="font-medium text-sm truncate">
-                {`${user.firstName} ${user.lastName}`}
-              </span>
-                    <div className="flex flex-col text-xs text-blue-200">
-                      <span className="truncate">{user.role}</span>
-                      <span className="truncate">{user.department}</span>
-                    </div>
-                  </div>
-                  <ChevronDownIcon
-                      className={`w-5 h-5 transform transition-transform ${
-                          isUserMenuOpen ? 'rotate-180' : ''
-                      }`}
-                      aria-hidden="true"
-                  />
-                </motion.div>
-            )}
-          </button>
-
-          <AnimatePresence>
-            {isUserMenuOpen && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute bottom-full left-0 right-0 mb-2 py-2 bg-blue-700 rounded-md shadow-lg"
-                    id="user-menu-dropdown"
-                >
-                  <div className="px-4 py-2 border-b border-blue-600">
-                    <div className="text-sm font-medium">
-                      {`${user.firstName} ${user.lastName}`}
-                    </div>
-                    <div className="text-xs text-blue-200">{user.department}</div>
-                    <div className="text-xs text-blue-200">{user.role}</div>
-                  </div>
-                  <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm hover:bg-blue-600 transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Account Settings
-                  </Link>
-                  <button
-                      onClick={async () => {
-                        setIsUserMenuOpen(false);
-                        await logout();
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-700 hover:text-white transition-colors"
-                  >
-                    Logout
-                  </button>
-                </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-    );
-  };
 
   return (
     <aside className="relative">

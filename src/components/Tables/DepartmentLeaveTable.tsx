@@ -8,279 +8,242 @@ import { API_BASE } from "@/lib/contsants";
 
 // Interfaces
 interface Department {
-    id: string;
-    name: string;
-    description: string;
-    manager_id: string | null;
+  id: string;
+  name: string;
+  description: string;
+  manager_id: string | null;
+  employee_count: number;
 }
 
 interface User {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string;
-    dob: string;
-    gender: string;
-    role: 'admin' | 'manager' | 'employee';
-    department_id: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department_id: string;
+  role: "admin" | "manager" | "employee";
 }
 
 interface LeaveRequest {
-    id: number;
-    user_id: string;
-    leave_type_id: number;
-    start_date: string;
-    end_date: string;
-    number_of_days: number;
-    status: 'Pending' | 'Approved' | 'Rejected';
-    reason: string;
-    comments: string | null;
-    action_by: string | null;
-    action_at: string | null;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  status: "Pending" | "Approved" | "Rejected";
 }
 
 interface DepartmentStats {
-    department: string;
-    departmentId: string;
-    totalEmployees: number;
-    onLeave: number;
-    upcoming: number;
-    coverage: number;
+  department: string;
+  departmentId: string;
+  totalEmployees: number;
+  onLeave: number;
+  upcoming: number;
+  coverage: number;
 }
 
 export function DepartmentLeaveTable() {
-    const [departmentStats, setDepartmentStats] = useState<DepartmentStats[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const { toast } = useToast();
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStats[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-    const fetchData = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('Authentication token not found');
-    
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-    
-            // Fetch all data
-            const [departmentsRes, usersRes, leavesRes] = await Promise.all([
-                fetch(`${API_BASE}/departments`, { headers }),
-                fetch(`${API_BASE}/users`, { headers }),
-                fetch(`${API_BASE}/leave-requests`, { headers })
-            ]);
-    
-            // Parse responses
-            const departmentsData = await departmentsRes.json();
-            const usersData = await usersRes.json();
-            const leavesData = await leavesRes.json();
-    
-            console.log('Raw API Responses:', {
-                departments: departmentsData,
-                users: usersData,
-                leaves: leavesData
-            });
-    
-            // Extract data based on different response structures
-            const departments = Array.isArray(departmentsData) ? departmentsData : [];
-            const users = usersData?.users || []; // Extract from paginated response
-            const leaves = leavesData?.data || [];
-    
-            console.log('Extracted Data:', {
-                departments,
-                users,
-                leaves
-            });
-    
-            // Filter employees
-            const employees = users.filter(user => {
-                const isEmployee = user?.role?.toLowerCase() === 'employee';
-                const hasDepartment = Boolean(user?.department_id);
-                console.log('Processing user:', {
-                    id: user?.id,
-                    role: user?.role,
-                    department_id: user?.department_id,
-                    isEmployee,
-                    hasDepartment
-                });
-                return isEmployee && hasDepartment;
-            });
-    
-            // Filter approved leaves
-            const approvedLeaves = leaves.filter(leave => leave.status === 'Approved');
-    
-            console.log('Filtered Data:', {
-                departmentsCount: departments.length,
-                employeesCount: employees.length,
-                approvedLeavesCount: approvedLeaves.length
-            });
-    
-            // Calculate department statistics
-            const stats = departments.map((dept) => {
-                const departmentUsers = employees.filter(emp => emp.department_id === dept.id);
-                
-                console.log(`Department ${dept.name}:`, {
-                    id: dept.id,
-                    totalUsers: departmentUsers.length,
-                    users: departmentUsers.map(u => ({
-                        id: u.id,
-                        role: u.role,
-                        department_id: u.department_id
-                    }))
-                });
-    
-                const departmentLeaves = approvedLeaves.filter(leave => 
-                    departmentUsers.some(user => user.id === leave.user_id)
-                );
-    
-                const totalEmployees = departmentUsers.length;
-    
-                // Calculate current leaves
-                const now = new Date();
-                now.setHours(0, 0, 0, 0);
-                
-                const onLeave = departmentLeaves.filter(leave => {
-                    const startDate = new Date(leave.start_date);
-                    const endDate = new Date(leave.end_date);
-                    return startDate <= now && endDate >= now;
-                }).length;
-    
-                // Calculate upcoming leaves
-                const nextWeek = new Date(now);
-                nextWeek.setDate(nextWeek.getDate() + 7);
-                nextWeek.setHours(23, 59, 59, 999);
-                
-                const upcoming = departmentLeaves.filter(leave => {
-                    const startDate = new Date(leave.start_date);
-                    return startDate > now && startDate <= nextWeek;
-                }).length;
-    
-                const coverage = totalEmployees > 0 
-                    ? Math.round(((totalEmployees - onLeave) / totalEmployees) * 100)
-                    : 100;
-    
-                return {
-                    department: dept.name.trim(),
-                    departmentId: dept.id,
-                    totalEmployees,
-                    onLeave,
-                    upcoming,
-                    coverage
-                };
-            });
-    
-            console.log('Final Department Stats:', stats);
-            setDepartmentStats(stats);
-    
-        } catch (error) {
-            console.error('Error in fetchData:', error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch department statistics",
-                variant: "destructive",
-            });
-        } finally {
-            setIsLoading(false);
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication token not found');
+  
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+  
+      // Fetch departments (public route)
+      const departmentsRes = await fetch(`${API_BASE}/departments`, { headers });
+      const departmentsData = await departmentsRes.json();
+  
+      if (!departmentsData.success) {
+        throw new Error('Failed to fetch departments');
+      }
+  
+      const departments: Department[] = departmentsData.data;
+  
+      // Fetch users (protected route, admin-only)
+      let users: User[] = [];
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user?.role === 'admin') {
+        const usersRes = await fetch(`${API_BASE}/users`, { headers });
+        const usersData = await usersRes.json();
+  
+        if (!usersData.success) {
+          throw new Error('Failed to fetch users');
         }
-    }, [toast]);
-    
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-    
-    if (isLoading) {
-        return (
-            <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className="w-full h-12 bg-muted rounded-md animate-pulse" />
-                ))}
-            </div>
-        );
+  
+        users = usersData.data;
+      }
+  
+      // Fetch leave requests (protected route, admin-only)
+      let leaves: LeaveRequest[] = [];
+      if (user?.role === 'admin') {
+        const leavesRes = await fetch(`${API_BASE}/leave-requests`, { headers });
+        const leavesData = await leavesRes.json();
+  
+        if (!leavesData.success) {
+          throw new Error('Failed to fetch leave requests');
+        }
+  
+        leaves = leavesData.data;
+      }
+  
+      // Filter employees (users with role 'employee')
+      const employees = users.filter((user: User) => user.role.toLowerCase() === 'employee');
+  
+      // Filter approved leaves
+      const approvedLeaves = leaves.filter((leave: LeaveRequest) => leave.status === 'Approved');
+  
+      // Calculate department statistics
+      const stats = departments.map((dept: Department) => {
+        const departmentUsers = employees.filter((emp: User) => emp.department_id === dept.id);
+        const totalEmployees = departmentUsers.length;
+  
+        // Calculate current leaves
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+  
+        const onLeave = approvedLeaves.filter((leave: LeaveRequest) => {
+          const startDate = new Date(leave.start_date);
+          const endDate = new Date(leave.end_date);
+          return (
+            startDate <= now &&
+            endDate >= now &&
+            departmentUsers.some((user: User) => user.id === leave.user_id)
+          );
+        }).length;
+  
+        // Calculate upcoming leaves
+        const nextWeek = new Date(now);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        nextWeek.setHours(23, 59, 59, 999);
+  
+        const upcoming = approvedLeaves.filter((leave: LeaveRequest) => {
+          const startDate = new Date(leave.start_date);
+          return (
+            startDate > now &&
+            startDate <= nextWeek &&
+            departmentUsers.some((user: User) => user.id === leave.user_id)
+          );
+        }).length;
+  
+        // Calculate coverage
+        const coverage =
+          totalEmployees > 0 ? Math.round(((totalEmployees - onLeave) / totalEmployees) * 100) : 100;
+  
+        return {
+          department: dept.name.trim(),
+          departmentId: dept.id,
+          totalEmployees,
+          onLeave,
+          upcoming,
+          coverage,
+        };
+      });
+  
+      setDepartmentStats(stats);
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (!departmentStats?.length) {
-        return (
-            <div className="text-center py-8 space-y-3">
-                <div className="text-muted-foreground">
-                    No department data available
-                </div>
-            </div>
-        );
-    }
-    
-    return (
-        <div className="space-y-4">
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Department</TableHead>
-                            <TableHead className="text-right">On Leave</TableHead>
-                            <TableHead className="text-right">Upcoming</TableHead>
-                            <TableHead className="w-[200px]">Coverage</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {departmentStats.map((dept) => (
-                            <TableRow key={dept.departmentId}>
-                                <TableCell className="font-medium">
-                                    {dept.department}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Badge
-                                        variant={
-                                            dept.onLeave > (dept.totalEmployees * 0.2)
-                                                ? "destructive"
-                                                : dept.onLeave > 0
-                                                    ? "secondary"
-                                                    : "outline"
-                                        }
-                                    >
-                                        {dept.onLeave}/{dept.totalEmployees}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {dept.upcoming > 0 ? (
-                                        <Badge variant="secondary">
-                                            {dept.upcoming}
-                                        </Badge>
-                                    ) : (
-                                        <span className="text-muted-foreground">
-                                            --
-                                        </span>
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <Progress
-                                            value={dept.coverage}
-                                            className={`h-2 ${
-                                                dept.coverage < 70
-                                                    ? 'bg-destructive/20'
-                                                    : dept.coverage < 85
-                                                        ? 'bg-yellow-200'
-                                                        : 'bg-emerald-200'
-                                            }`}
-                                        />
-                                        <span className={`text-sm ${
-                                            dept.coverage < 70
-                                                ? 'text-destructive'
-                                                : 'text-muted-foreground'
-                                        }`}>
-                                            {dept.coverage}%
-                                        </span>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-        </div>
-    );
-}
+  }, [toast]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="w-full h-12 bg-muted rounded-md animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!departmentStats?.length) {
+    return (
+      <div className="text-center py-8 space-y-3">
+        <div className="text-muted-foreground">No department data available</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Department</TableHead>
+              <TableHead className="text-right">On Leave</TableHead>
+              <TableHead className="text-right">Upcoming</TableHead>
+              <TableHead className="w-[200px]">Coverage</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {departmentStats.map((dept) => (
+              <TableRow key={dept.departmentId}>
+                <TableCell className="font-medium">{dept.department}</TableCell>
+                <TableCell className="text-right">
+                  <Badge
+                    variant={
+                      dept.onLeave > dept.totalEmployees * 0.2
+                        ? "destructive"
+                        : dept.onLeave > 0
+                        ? "secondary"
+                        : "outline"
+                    }
+                  >
+                    {dept.onLeave}/{dept.totalEmployees}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {dept.upcoming > 0 ? (
+                    <Badge variant="secondary">{dept.upcoming}</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">--</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Progress
+                      value={dept.coverage}
+                      className={`h-2 ${
+                        dept.coverage < 70
+                          ? "bg-destructive/20"
+                          : dept.coverage < 85
+                          ? "bg-yellow-200"
+                          : "bg-emerald-200"
+                      }`}
+                    />
+                    <span
+                      className={`text-sm ${
+                        dept.coverage < 70 ? "text-destructive" : "text-muted-foreground"
+                      }`}
+                    >
+                      {dept.coverage}%
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
