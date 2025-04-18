@@ -57,48 +57,65 @@ export function DepartmentLeaveTable() {
         'Content-Type': 'application/json',
       };
   
-      // Fetch departments (public route)
+      // Fetch departments
       const departmentsRes = await fetch(`${API_BASE}/departments`, { headers });
-      const departmentsData = await departmentsRes.json();
-  
-      if (!departmentsData.success) {
+      if (!departmentsRes.ok) {
         throw new Error('Failed to fetch departments');
       }
-  
+      const departmentsData = await departmentsRes.json();
+      if (!departmentsData?.data) {
+        throw new Error('Invalid departments data received');
+      }
       const departments: Department[] = departmentsData.data;
   
-      // Fetch users (protected route, admin-only)
+      // Fetch users
+      const usersRes = await fetch(`${API_BASE}/users`, { headers });
+      if (!usersRes.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      const usersData = await usersRes.json();
+      console.log('Users API Response:', usersData); // Debug log
+      
+      // Handle different possible response structures
       let users: User[] = [];
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (user?.role === 'admin') {
-        const usersRes = await fetch(`${API_BASE}/users`, { headers });
-        const usersData = await usersRes.json();
-  
-        if (!usersData.success) {
-          throw new Error('Failed to fetch users');
-        }
-  
+      if (Array.isArray(usersData)) {
+        users = usersData;
+      } else if (usersData?.data && Array.isArray(usersData.data)) {
         users = usersData.data;
+      } else if (usersData?.users && Array.isArray(usersData.users)) {
+        users = usersData.users;
+      } else {
+        throw new Error('Invalid users data structure received');
       }
-  
-      // Fetch leave requests (protected route, admin-only)
-      let leaves: LeaveRequest[] = [];
-      if (user?.role === 'admin') {
-        const leavesRes = await fetch(`${API_BASE}/leave-requests`, { headers });
-        const leavesData = await leavesRes.json();
-  
-        if (!leavesData.success) {
-          throw new Error('Failed to fetch leave requests');
-        }
-  
-        leaves = leavesData.data;
+
+      // Validate user data structure
+      if (!users.every(user => 
+        typeof user.id === 'string' && 
+        typeof user.first_name === 'string' && 
+        typeof user.last_name === 'string' && 
+        typeof user.email === 'string' && 
+        typeof user.department_id === 'string' && 
+        typeof user.role === 'string'
+      )) {
+        throw new Error('Invalid user data structure');
       }
+
+      // Fetch leave requests
+      const leavesRes = await fetch(`${API_BASE}/leave-requests`, { headers });
+      if (!leavesRes.ok) {
+        throw new Error('Failed to fetch leave requests');
+      }
+      const leavesData = await leavesRes.json();
+      if (!leavesData?.data) {
+        throw new Error('Invalid leave requests data received');
+      }
+      const leaves: LeaveRequest[] = leavesData.data;
   
       // Filter employees (users with role 'employee')
       const employees = users.filter((user: User) => user.role.toLowerCase() === 'employee');
   
       // Filter approved leaves
-      const approvedLeaves = leaves.filter((leave: LeaveRequest) => leave.status === 'Approved');
+      const approvedLeaves = leaves?.filter((leave: LeaveRequest) => leave.status === 'Approved') || [];
   
       // Calculate department statistics
       const stats = departments.map((dept: Department) => {
@@ -112,6 +129,9 @@ export function DepartmentLeaveTable() {
         const onLeave = approvedLeaves.filter((leave: LeaveRequest) => {
           const startDate = new Date(leave.start_date);
           const endDate = new Date(leave.end_date);
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
           return (
             startDate <= now &&
             endDate >= now &&
@@ -119,13 +139,15 @@ export function DepartmentLeaveTable() {
           );
         }).length;
   
-        // Calculate upcoming leaves
+        // Calculate upcoming leaves (next 7 days)
         const nextWeek = new Date(now);
         nextWeek.setDate(nextWeek.getDate() + 7);
         nextWeek.setHours(23, 59, 59, 999);
   
         const upcoming = approvedLeaves.filter((leave: LeaveRequest) => {
           const startDate = new Date(leave.start_date);
+          startDate.setHours(0, 0, 0, 0);
+          
           return (
             startDate > now &&
             startDate <= nextWeek &&
@@ -134,8 +156,9 @@ export function DepartmentLeaveTable() {
         }).length;
   
         // Calculate coverage
-        const coverage =
-          totalEmployees > 0 ? Math.round(((totalEmployees - onLeave) / totalEmployees) * 100) : 100;
+        const coverage = totalEmployees > 0 
+          ? Math.round(((totalEmployees - onLeave) / totalEmployees) * 100) 
+          : 100;
   
         return {
           department: dept.name.trim(),
@@ -152,7 +175,7 @@ export function DepartmentLeaveTable() {
       console.error('Error in fetchData:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to fetch department statistics',
         variant: 'destructive',
       });
     } finally {

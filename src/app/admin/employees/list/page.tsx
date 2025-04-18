@@ -328,6 +328,7 @@ export default function EmployeeListPage() {
           email: formData.email.trim(),
           role: formData.role,
           department_id: formData.department_id || null,
+          password: formData.password // Always include password for new users
         };
     
         // Add optional fields only if they have values
@@ -335,8 +336,7 @@ export default function EmployeeListPage() {
           ...basePayload,
           ...(formData.phone && { phone: formData.phone.trim() }),
           ...(formData.gender && { gender: formData.gender.toLowerCase() }),
-          ...(formData.dob && { dob: formData.dob }),
-          ...(!editingEmployee || formData.password ? { password: formData.password } : {})
+          ...(formData.dob && { dob: formData.dob })
         };
     
         // Handle existing employee updates
@@ -438,77 +438,86 @@ export default function EmployeeListPage() {
           }
         } else {
           // Creating new employee
-          const response = await fetch(`${API_BASE}/api/users`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-          });
-    
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Operation failed');
-          }
-    
-          const newEmployee = await response.json();
-    
-          // If creating new manager, update department
-          if (formData.role === 'manager' && formData.department_id) {
-            // Handle existing manager first
-            const targetDepartment = departments.find(d => d.id === formData.department_id);
-            if (targetDepartment?.manager_id) {
-              await fetch(`${API_BASE}/api/users/${targetDepartment.manager_id}`, {
+          try {
+            const response = await fetch(`${API_BASE}/api/users`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Failed to create user');
+            }
+
+            const newEmployee = await response.json();
+
+            // If creating new manager, update department
+            if (formData.role === 'manager' && formData.department_id) {
+              // Handle existing manager first
+              const targetDepartment = departments.find(d => d.id === formData.department_id);
+              if (targetDepartment?.manager_id) {
+                await fetch(`${API_BASE}/api/users/${targetDepartment.manager_id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    role: 'employee',
+                    department_id: targetDepartment.id
+                  })
+                });
+              }
+
+              // Set new manager
+              await fetch(`${API_BASE}/api/departments/${formData.department_id}`, {
                 method: 'PUT',
                 headers: {
                   'Authorization': `Bearer ${token}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  role: 'employee',
-                  department_id: targetDepartment.id
+                  manager_id: newEmployee.id
                 })
               });
             }
-    
-            // Set new manager
-            await fetch(`${API_BASE}/api/departments/${formData.department_id}`, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                manager_id: newEmployee.id
-              })
+
+            toast({
+              title: "Success",
+              description: "Employee created successfully",
+              variant: "default",
             });
+
+            // Reset form and state
+            setIsModalOpen(false);
+            setFormData({
+              first_name: '',
+              last_name: '',
+              email: '',
+              phone: '',
+              role: 'employee',
+              department_id: '',
+              password: '',
+              gender: '',
+              dob: ''
+            });
+
+            // Refresh employee list
+            await fetchEmployees(pagination.page, selectedRole);
+          } catch (error) {
+            console.error('Create employee error:', error);
+            toast({
+              title: "Error",
+              description: error instanceof Error ? error.message : "Failed to create employee",
+              variant: "destructive",
+            });
+            throw error; // Re-throw to be caught by outer try-catch
           }
         }
-    
-        toast({
-          title: "Success",
-          description: `Employee ${editingEmployee ? 'updated' : 'created'} successfully`,
-          variant: "default",
-        });
-    
-        // Reset form and state
-        setIsModalOpen(false);
-        setFormData({
-          first_name: '',
-          last_name: '',
-          email: '',
-          phone: '',
-          role: 'employee',
-          department_id: '',
-          password: '',
-          gender: '',
-          dob: ''
-        });
-        setEditingEmployee(null);
-    
-        // Refresh employee list
-        await fetchEmployees(pagination.page, selectedRole);
     
       } catch (err) {
         console.error('Submit error:', err);

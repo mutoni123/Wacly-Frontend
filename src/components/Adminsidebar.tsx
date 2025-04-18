@@ -117,7 +117,7 @@ export default function AdminSidebar() {
                   animate={{ opacity: 1 }}
                   className="flex flex-col"
               >
-                <span className="font-bold text-lg">Walcy Enterprises</span>
+                <span className="font-bold text-lg">Wacly Enterprises</span>
                 <span className="text-xs text-blue-200">EMS</span>
               </motion.div>
           )}

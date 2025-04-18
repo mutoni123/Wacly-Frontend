@@ -21,6 +21,16 @@ interface Employee {
   departmentId: string;
 }
 
+// Add interface for API response
+interface UserAPIResponse {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  department_id: string;
+}
+
 interface Department {
   id: string;
   name: string;
@@ -30,6 +40,18 @@ interface Department {
   managerName: string;
   budget: number;
   activeProjects: number;
+}
+
+// Add interface for API response
+interface DepartmentAPIResponse {
+  id: string;
+  name: string;
+  description: string;
+  employee_count: number;
+  manager_id: string;
+  manager_name: string;
+  budget: number;
+  active_projects: number;
 }
 
 export default function DepartmentPage() {
@@ -62,48 +84,206 @@ export default function DepartmentPage() {
 
   const fetchDepartments = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/departments`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      const response = await fetch(`http://localhost:5000/api/departments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch departments');
-      setDepartments(await response.json());
+      const data = await response.json();
+      
+      // Handle different possible response structures
+      let departmentsData: DepartmentAPIResponse[] = [];
+      if (Array.isArray(data)) {
+        departmentsData = data;
+      } else if (data?.data && Array.isArray(data.data)) {
+        departmentsData = data.data;
+      } else if (data?.departments && Array.isArray(data.departments)) {
+        departmentsData = data.departments;
+      } else {
+        throw new Error('Invalid departments data structure received');
+      }
+
+      // Transform the data to match our Department interface
+      const transformedDepartments = departmentsData.map(dept => ({
+        id: dept.id,
+        name: dept.name,
+        description: dept.description || '',
+        employeeCount: dept.employee_count || 0,
+        managerId: dept.manager_id || '',
+        managerName: dept.manager_name || '',
+        budget: dept.budget || 0,
+        activeProjects: dept.active_projects || 0
+      }));
+
+      setDepartments(transformedDepartments);
+      return transformedDepartments;
     } catch (error) {
+      console.error('Error fetching departments:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to fetch departments');
+      return [];
     }
   }, []);
 
   const fetchManagers = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/employees?role=manager`);
-      if (!response.ok) throw new Error('Failed to fetch managers');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users?role=manager`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch managers');
+      }
+
       const data = await response.json();
-      setManagers(data.employees);
+      console.log('Managers API Response:', data); // Debug log
+      
+      // Handle different possible response structures
+      let managersData: UserAPIResponse[] = [];
+      if (Array.isArray(data)) {
+        managersData = data;
+      } else if (data?.data && Array.isArray(data.data)) {
+        managersData = data.data;
+      } else if (data?.users && Array.isArray(data.users)) {
+        managersData = data.users;
+      } else {
+        console.error('Invalid managers data structure:', data);
+        throw new Error('Invalid managers data structure received');
+      }
+
+      // Transform the data to match our Employee interface
+      const transformedManagers = managersData.map(manager => ({
+        id: manager.id,
+        name: `${manager.first_name} ${manager.last_name}`,
+        role: manager.role,
+        email: manager.email,
+        departmentId: manager.department_id
+      }));
+
+      console.log('Transformed managers:', transformedManagers); // Debug log
+      return transformedManagers;
     } catch (error) {
+      console.error('Error fetching managers:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to fetch managers');
+      return [];
     }
   }, []);
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/employees`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users?role=employee`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch employees');
       const data = await response.json();
-      setEmployees(data.employees);
+      
+      // Handle different possible response structures
+      let employeesData: UserAPIResponse[] = [];
+      if (Array.isArray(data)) {
+        employeesData = data;
+      } else if (data?.data && Array.isArray(data.data)) {
+        employeesData = data.data;
+      } else if (data?.users && Array.isArray(data.users)) {
+        employeesData = data.users;
+      } else {
+        throw new Error('Invalid employees data structure received');
+      }
+
+      // Transform the data to match our Employee interface
+      const transformedEmployees = employeesData.map(employee => ({
+        id: employee.id,
+        name: `${employee.first_name} ${employee.last_name}`,
+        role: employee.role,
+        email: employee.email,
+        departmentId: employee.department_id
+      }));
+
+      setEmployees(transformedEmployees);
+      return transformedEmployees;
     } catch (error) {
+      console.error('Error fetching employees:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to fetch employees');
+      return [];
     }
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const initializeData = async () => {
       try {
         setLoading(true);
-        await Promise.all([fetchDepartments(), fetchManagers(), fetchEmployees()]);
+        // Fetch all data in parallel
+        const [departmentsResult, managersResult, employeesResult] = await Promise.all([
+          fetchDepartments(),
+          fetchManagers(),
+          fetchEmployees()
+        ]);
+
+        // Only update state if component is still mounted
+        if (isMounted) {
+          // Update managers state first
+          if (managersResult && managersResult.length > 0) {
+            setManagers(managersResult);
+
+            // Update departments with manager information
+            const updatedDepartments = departmentsResult.map(dept => {
+              const manager = managersResult.find(m => m.departmentId === dept.id);
+              return {
+                ...dept,
+                managerId: manager?.id || dept.managerId || '',
+                managerName: manager?.name || dept.managerName || ''
+              };
+            });
+            setDepartments(updatedDepartments);
+          }
+
+          // Update employees state
+          if (employeesResult && employeesResult.length > 0) {
+            setEmployees(employeesResult);
+          }
+        }
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to initialize data');
+        if (isMounted) {
+          setError(error instanceof Error ? error.message : 'Failed to initialize data');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     initializeData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [fetchDepartments, fetchManagers, fetchEmployees]);
 
   const handleDepartmentAction = async (
@@ -111,44 +291,75 @@ export default function DepartmentPage() {
     data: Partial<Department> & { id?: string }
   ) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
       const method = action === 'delete' ? 'DELETE' : action === 'update' ? 'PUT' : 'POST';
-      const url = action === 'delete' ? `$http://localhost:5000/api/departments/${data.id}` :
-        action === 'update' ? `$http://localhost:5000/api/departments/${data.id}` : `http://localhost:5000/api/departments`;
+      const url = action === 'delete' ? `http://localhost:5000/api/departments/${data.id}` :
+        action === 'update' ? `http://localhost:5000/api/departments/${data.id}` : `http://localhost:5000/api/departments`;
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: method !== 'DELETE' ? JSON.stringify(data) : null
-      });
+      // If updating or creating, handle manager assignment
+      if (method !== 'DELETE') {
+        // If there's a manager being assigned
+        if (data.managerId) {
+          // Update the manager's department
+          await fetch(`http://localhost:5000/api/users/${data.managerId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              department_id: data.id || data.department_id
+            })
+          });
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Operation failed');
+        // Update the department with manager information
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...data,
+            manager_id: data.managerId
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Operation failed');
+        }
+
+        // Refresh all data to ensure consistency
+        await Promise.all([fetchDepartments(), fetchManagers(), fetchEmployees()]);
+      } else {
+        // Handle deletion
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Operation failed');
+        }
+
+        // Refresh data after deletion
+        await Promise.all([fetchDepartments(), fetchManagers(), fetchEmployees()]);
       }
 
       toast.success(`Department ${action}d successfully`);
-      await Promise.all([fetchDepartments(), fetchManagers()]);
       return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Operation failed');
       return false;
-    }
-  };
-
-  const handleManagerUpdate = async (departmentId: string, managerId: string) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/departments/${departmentId}/manager`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ managerId })
-      });
-
-      if (!response.ok) throw new Error('Failed to update manager');
-
-      toast.success('Manager updated successfully');
-      await Promise.all([fetchDepartments(), fetchManagers()]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update manager');
     }
   };
 
@@ -169,27 +380,67 @@ export default function DepartmentPage() {
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/api/departments/transfer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // First, update the employee's department
+      const response = await fetch(`http://localhost:5000/api/users/${transferData.employeeId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          employeeId: transferData.employeeId,
-          toDepartmentId: transferData.toDepartmentId,
-          reason: transferData.reason
+          department_id: transferData.toDepartmentId
         })
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to submit transfer request');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to transfer employee');
       }
 
-      toast.success('Employee transfer request submitted successfully');
+      // If the employee is a manager, update the department's manager_id
+      const employee = employees.find(e => e.id === transferData.employeeId);
+      if (employee?.role === 'manager') {
+        // Clear manager from old department
+        if (transferData.fromDepartmentId) {
+          await fetch(`http://localhost:5000/api/departments/${transferData.fromDepartmentId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              manager_id: null
+            })
+          });
+        }
+
+        // Set manager for new department
+        await fetch(`http://localhost:5000/api/departments/${transferData.toDepartmentId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            manager_id: transferData.employeeId
+          })
+        });
+      }
+
+      toast.success('Employee transferred successfully');
       setIsTransferModalOpen(false);
       setTransferData({ employeeId: '', fromDepartmentId: '', toDepartmentId: '', reason: '' });
-      await Promise.all([fetchDepartments(), fetchEmployees()]);
+      
+      // Refresh data
+      await Promise.all([fetchDepartments(), fetchEmployees(), fetchManagers()]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to submit transfer request');
+      console.error('Transfer error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to transfer employee');
     }
   };
 
@@ -237,7 +488,6 @@ export default function DepartmentPage() {
           <TableRow>
             <TableHead>Department Name</TableHead>
             <TableHead>Manager</TableHead>
-            <TableHead>Budget</TableHead>
             <TableHead>Employees</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -247,28 +497,8 @@ export default function DepartmentPage() {
             <TableRow key={department.id}>
               <TableCell className="font-medium">{department.name}</TableCell>
               <TableCell>
-                <Select
-                  value={department.managerId}
-                  onValueChange={(value) => handleManagerUpdate(department.id, value)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{manager.name}</span>
-                          <span className="text-muted-foreground text-sm">
-                            ({manager.email})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {department.managerName || 'No manager assigned'}
               </TableCell>
-              <TableCell>Ksh {department.budget.toLocaleString()}</TableCell>
               <TableCell>{department.employeeCount}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
@@ -333,12 +563,7 @@ export default function DepartmentPage() {
                   <SelectContent>
                     {managers.map((manager) => (
                       <SelectItem key={manager.id} value={manager.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{manager.name}</span>
-                          <span className="text-muted-foreground text-sm">
-                            ({manager.email})
-                          </span>
-                        </div>
+                        {manager.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -383,6 +608,7 @@ export default function DepartmentPage() {
                     fromDepartmentId: employee?.departmentId || ''
                   }));
                 }}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
@@ -423,12 +649,15 @@ export default function DepartmentPage() {
               <Select
                 value={transferData.toDepartmentId}
                 onValueChange={(value) => setTransferData(prev => ({ ...prev, toDepartmentId: value }))}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select target department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.map(dept => (
+                  {departments
+                    .filter(dept => dept.id !== transferData.fromDepartmentId)
+                    .map(dept => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
                     </SelectItem>
